@@ -89,6 +89,33 @@ unity-mcp-lab/
     └── ProjectSettings/
 ```
 
+## Building for Meta Quest 3
+
+Hardware: Meta Quest 3, USB-C cable, Mac with Android Build Support installed in Unity Hub.
+
+**One-time setup (already done in this repo, listed here for reproducibility):**
+
+- Unity Hub → Installs → Add Modules → **Android Build Support** with **OpenJDK** and **Android SDK & NDK Tools**.
+- Quest: Developer Mode on (via Meta Quest mobile app), USB debugging allowed.
+- Project menu **Tools → Quest Setup → Configure Project for Quest 3** ran once — switches to Android target, IL2CPP, ARM64, Linear color space, Vulkan, identifier `com.unitymcplab.campfireroom`, and assigns the Oculus XR loader. Re-runnable.
+
+**Build & deploy (each iteration):**
+
+1. Connect Quest 3 via USB-C and confirm `adb devices` shows it:
+   ```
+   /Applications/Unity/Hub/Editor/6000.4.7f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb devices
+   ```
+2. In Unity: **File → Build Settings → Build And Run** (or `Cmd+B`). Pick a build folder (e.g. `Builds/quest/CampfireRoom.apk`). The APK installs and launches on the headset automatically.
+3. Put the headset on. The app opens to the campfire scene with you seated at **PlayerSlot_A** facing the fire. **PlayerSlot_B** remains as the empty placeholder for the remote friend.
+
+**Manual install of an existing APK:**
+```
+adb install -r Builds/quest/CampfireRoom.apk
+adb shell am start -n com.unitymcplab.campfireroom/com.unity3d.player.UnityPlayerActivity
+```
+
+**Falling back to non-VR Editor view:** the original `Main Camera` is still in the scene but disabled. Toggle it on (and disable `VRRig`) to use the previous flat-screen view.
+
 ## Next slices
 
 Smallest sensible steps toward the vision, in rough order. Each is its own commit/PR.
@@ -98,9 +125,10 @@ Smallest sensible steps toward the vision, in rough order. Each is its own commi
 3. **Night skybox + softer ambient light** — push the mood from "neutral 3D scene" to "evening by a fire".
 4. **Look-at gaze on PlayerSlot capsules** — make the placeholder avatars subtly orient toward the fire or each other.
 5. **Switch to URP** (if not already) and add a soft bloom on the flame — visual warmth.
-6. **XR Interaction Toolkit + a single VR rig at PlayerSlot_A** — first time we put a headset on. Still single-player.
-7. **Netcode for GameObjects, host/client over LAN** — two builds, both spawn into a slot, see each other's head. No voice yet.
-8. **Voice chat** (Unity Vivox or a peer-to-peer alternative). At this point the original vision is reached.
+6. ~~**XR Interaction Toolkit + a single VR rig at PlayerSlot_A**~~ — done with a minimal Oculus XR rig instead (no XRI, no Input System switch). See "Building for Meta Quest 3" above.
+7. **Hand presence / controller models** — show the user's controllers as low-poly hand placeholders.
+8. **Netcode for GameObjects, host/client over LAN** — two builds, both spawn into a slot, see each other's head. No voice yet.
+9. **Voice chat** (Unity Vivox or a peer-to-peer alternative). At this point the original vision is reached.
 
 ## Out of scope
 
