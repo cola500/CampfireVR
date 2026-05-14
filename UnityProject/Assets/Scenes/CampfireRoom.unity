@@ -450,6 +450,7 @@ GameObject:
   - component: {fileID: 722019847}
   - component: {fileID: 722019849}
   - component: {fileID: 722019848}
+  - component: {fileID: 722019850}
   m_Layer: 0
   m_Name: VRCamera
   m_TagString: MainCamera
@@ -531,6 +532,19 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!114 &722019850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 722019846}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a0b120318ef54b1ebc70b9800f4fab2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::XRHeadTracker
+  node: 2
 --- !u!1 &731461653
 GameObject:
   m_ObjectHideFlags: 0
