@@ -54,3 +54,6 @@ node_modules/
 
 # Claude Code (local-only settings)
 .claude/settings.local.json
+
+# MCP server config (contains absolute path + per-machine package hash; use .mcp.example.json)
+.mcp.json

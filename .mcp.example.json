@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy this file to .mcp.json and replace ABSOLUTE_PATH_TO_REPO and PACKAGE_HASH. PACKAGE_HASH appears after Unity resolves the mcp-unity package (run Unity once on the project). Find the actual directory under UnityProject/Library/PackageCache/com.gamelovers.mcp-unity@<HASH>/. Then restart Claude Code so it picks up the server.",
+  "mcpServers": {
+    "mcp-unity": {
+      "command": "node",
+      "args": [
+        "ABSOLUTE_PATH_TO_REPO/UnityProject/Library/PackageCache/com.gamelovers.mcp-unity@PACKAGE_HASH/Server~/build/index.js"
+      ]
+    }
+  }
+}
