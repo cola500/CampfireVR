@@ -86,3 +86,7 @@ unity-mcp-lab/
 ## Out of scope
 
 No gameplay, no rendering pipeline changes, no polish. The hypothesis was MCP-chain wiring only, and it is confirmed.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
