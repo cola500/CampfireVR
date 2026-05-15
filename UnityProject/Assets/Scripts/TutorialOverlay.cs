@@ -44,6 +44,22 @@ public class TutorialOverlay : MonoBehaviour
         {
             text.text = state;
         }
+        else if (_net != null && _net.IsEditingCode)
+        {
+            bool onLast = _net.CodeSlot >= 5;
+            text.text =
+                $"Mode: {mode}\n" +
+                "\n" +
+                "JOIN CODE\n" +
+                _net.CodeDisplay + "\n" +
+                "\n" +
+                "A = NEXT LETTER\n" +
+                "X = PREVIOUS LETTER\n" +
+                (onLast ? "B = JOIN\n" : "B = NEXT SLOT\n") +
+                "Y = BACK\n" +
+                "\n" +
+                state;
+        }
         else
         {
             text.text =

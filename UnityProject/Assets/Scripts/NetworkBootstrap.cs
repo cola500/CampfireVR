@@ -10,6 +10,7 @@ using UnityEngine.XR;
 public class NetworkBootstrap : MonoBehaviour
 {
     public enum Mode { Lan, Relay }
+    public enum InputState { Idle, EditingCode }
 
     [SerializeField] private string serverAddress = "127.0.0.1";
     [SerializeField] private ushort port = 7777;
@@ -18,8 +19,13 @@ public class NetworkBootstrap : MonoBehaviour
     public Mode CurrentMode => mode;
     public string CurrentState => _state;
     public string LastButton => _lastButton;
+    public bool IsEditingCode => _inputState == InputState.EditingCode;
+    public string CodeDisplay => FormatCode();
+    public int CodeSlot => _slotIndex;
 
     private const string LanRoomName = "lan-campfire";
+    private const string CodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private const int CodeLength = 6;
 
     private string _joinCodeInput = "";
     private string _state = "Idle";
@@ -29,7 +35,10 @@ public class NetworkBootstrap : MonoBehaviour
     private ServicesBootstrap _services;
     private VoiceBootstrap _voiceBootstrap;
     private bool _busy;
-    private TouchScreenKeyboard _kbd;
+
+    private InputState _inputState = InputState.Idle;
+    private readonly char[] _codeChars = { 'A', 'A', 'A', 'A', 'A', 'A' };
+    private int _slotIndex = 0;
 
     private GUIStyle _codeStyle;
     private GUIStyle _labelStyle;
@@ -86,22 +95,43 @@ public class NetworkBootstrap : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.M)) ToggleMode();
         }
 
-        PollController(XRNode.LeftHand,  ref _prevLPrimary, ref _prevLSecondary, StartHost, ToggleMode);
-        PollController(XRNode.RightHand, ref _prevRPrimary, ref _prevRSecondary, Recenter,  StartClient);
+        PollController(XRNode.LeftHand,  ref _prevLPrimary, ref _prevLSecondary, OnLeftPrimary,  OnLeftSecondary);
+        PollController(XRNode.RightHand, ref _prevRPrimary, ref _prevRSecondary, OnRightPrimary, OnRightSecondary);
+    }
 
-        if (_kbd != null)
+    void OnLeftPrimary()
+    {
+        if (_inputState == InputState.EditingCode) CycleSlot(-1);
+        else StartHost();
+    }
+
+    void OnLeftSecondary()
+    {
+        if (_inputState == InputState.EditingCode)
         {
-            if (_kbd.status == TouchScreenKeyboard.Status.Done)
-            {
-                _joinCodeInput = (_kbd.text ?? "").Trim().ToUpper();
-                _kbd = null;
-                if (!string.IsNullOrEmpty(_joinCodeInput)) StartClient();
-                else _state = "No code entered";
-            }
-            else if (_kbd.status != TouchScreenKeyboard.Status.Visible)
-            {
-                _kbd = null;
-            }
+            if (_slotIndex > 0) { _slotIndex--; _state = $"Slot {_slotIndex + 1} of {CodeLength}"; }
+            else ExitCodeEditor(false);
+        }
+        else ToggleMode();
+    }
+
+    void OnRightPrimary()
+    {
+        if (_inputState == InputState.EditingCode) CycleSlot(+1);
+        else Recenter();
+    }
+
+    void OnRightSecondary()
+    {
+        if (_inputState == InputState.EditingCode)
+        {
+            if (_slotIndex >= CodeLength - 1) ExitCodeEditor(true);
+            else { _slotIndex++; _state = $"Slot {_slotIndex + 1} of {CodeLength}"; }
+        }
+        else
+        {
+            if (mode == Mode.Lan) StartClient();
+            else EnterCodeEditor();
         }
     }
 
@@ -154,6 +184,47 @@ public class NetworkBootstrap : MonoBehaviour
         _state = "Recentered";
     }
 
+    void EnterCodeEditor()
+    {
+        if (_busy) return;
+        _inputState = InputState.EditingCode;
+        _slotIndex = 0;
+        _state = $"Slot 1 of {CodeLength}";
+    }
+
+    void ExitCodeEditor(bool startClient)
+    {
+        _inputState = InputState.Idle;
+        if (startClient)
+        {
+            _joinCodeInput = new string(_codeChars);
+            StartClient();
+        }
+    }
+
+    void CycleSlot(int delta)
+    {
+        char c = _codeChars[_slotIndex];
+        int i = CodeAlphabet.IndexOf(c);
+        if (i < 0) i = 0;
+        i = ((i + delta) % CodeAlphabet.Length + CodeAlphabet.Length) % CodeAlphabet.Length;
+        _codeChars[_slotIndex] = CodeAlphabet[i];
+    }
+
+    string FormatCode()
+    {
+        var sb = new StringBuilder(CodeLength * 4);
+        for (int i = 0; i < CodeLength; i++)
+        {
+            if (i > 0) sb.Append(' ');
+            if (i == _slotIndex && _inputState == InputState.EditingCode)
+                sb.Append('[').Append(_codeChars[i]).Append(']');
+            else
+                sb.Append(' ').Append(_codeChars[i]).Append(' ');
+        }
+        return sb.ToString();
+    }
+
     async void StartHost()
     {
         if (_busy) return;
@@ -199,19 +270,7 @@ public class NetworkBootstrap : MonoBehaviour
         else
         {
             if (_services == null || !_services.IsReady) { _state = "Signing in…"; return; }
-            if (string.IsNullOrEmpty(_joinCodeInput))
-            {
-                if (TouchScreenKeyboard.isSupported)
-                {
-                    _kbd = TouchScreenKeyboard.Open("", TouchScreenKeyboardType.Default, false, false, false, false, "Campfire code");
-                    _state = "Enter the campfire code…";
-                }
-                else
-                {
-                    _state = "Enter join code in field then press Join again";
-                }
-                return;
-            }
+            if (string.IsNullOrEmpty(_joinCodeInput)) { _state = "No code entered"; return; }
             _busy = true;
             _state = $"Connecting to {_joinCodeInput}…";
             bool ok = await _services.JoinRelayAsync(_joinCodeInput);
@@ -230,6 +289,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (nm != null && (nm.IsHost || nm.IsClient)) nm.Shutdown();
         _state = "Disconnected";
         _joinCodeInput = "";
+        _inputState = InputState.Idle;
     }
 
     bool ConfigureLanTransport()
@@ -245,27 +305,12 @@ public class NetworkBootstrap : MonoBehaviour
     void EnsureStyles()
     {
         if (_codeStyle != null) return;
-        _codeStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 96, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
-        };
-        _labelStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 28, alignment = TextAnchor.MiddleCenter,
-        };
-        _stateStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 26, alignment = TextAnchor.MiddleCenter,
-        };
-        _promptStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 22, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
-        };
+        _codeStyle = new GUIStyle(GUI.skin.label) { fontSize = 96, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        _labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter };
+        _stateStyle = new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter };
+        _promptStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         _promptStyle.normal.textColor = new Color(1f, 0.85f, 0.62f, 0.85f);
-        _modeStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 18, alignment = TextAnchor.MiddleCenter,
-        };
+        _modeStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
         _modeStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f, 0.6f);
     }
 
@@ -309,15 +354,6 @@ public class NetworkBootstrap : MonoBehaviour
         }
 
         GUI.Label(new Rect(0, Screen.height * 0.70f, w, 40), _state, _stateStyle);
-
-        if (!connected)
-        {
-            float py = Screen.height * 0.78f;
-            GUI.Label(new Rect(0, py + 0,  w, 28), "PRESS X TO HOST",        _promptStyle);
-            GUI.Label(new Rect(0, py + 28, w, 28), "PRESS B TO JOIN",        _promptStyle);
-            GUI.Label(new Rect(0, py + 56, w, 28), "PRESS Y TO SWITCH MODE", _promptStyle);
-            GUI.Label(new Rect(0, py + 84, w, 28), "PRESS A TO RECENTER",    _promptStyle);
-        }
 
         if (mode == Mode.Relay && Application.isEditor)
         {
