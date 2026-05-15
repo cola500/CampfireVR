@@ -9,4 +9,5 @@ EditorBuildSettings:
     path: Assets/Scenes/CampfireRoom.unity
     guid: 007b8f8bac658470292841fc5e9e4f10
   m_configObjects:
+    Unity.XR.Oculus.Settings: {fileID: 11400000, guid: a283968a90a0b4f05bb652a7d802a13a, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 0561b34dacf19426ba3c95efd01aef37, type: 2}
