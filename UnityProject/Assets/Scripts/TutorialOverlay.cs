@@ -51,13 +51,20 @@ public class TutorialOverlay : MonoBehaviour
             text.text =
                 $"Mode: {mode}\n" +
                 "\n" +
-                "JOIN CODE  (letters are A B C only)\n" +
+                "JOIN CODE  (A B C)\n" +
                 _net.CodeDisplay + "\n" +
+                "\n" +
+                $"SLOT:  {_net.CodeSlot + 1} / {_net.CodeLengthSlots}\n" +
+                $"VALUE: {_net.CodeValue}\n" +
                 "\n" +
                 "A = NEXT LETTER     (hold to auto-cycle)\n" +
                 "X = PREVIOUS LETTER (hold to auto-cycle)\n" +
                 (onLast ? "B = JOIN\n" : "B = NEXT SLOT\n") +
                 "Y = BACK\n" +
+                "\n" +
+                $"LAST INPUT:  {(string.IsNullOrEmpty(_net.LastButton) ? "—" : _net.LastButton)}\n" +
+                $"LAST ACTION: {(string.IsNullOrEmpty(_net.LastAction) ? "—" : _net.LastAction)}\n" +
+                $"CTRL: L={(_net.LeftHandValid ? "ok" : "off")}  R={(_net.RightHandValid ? "ok" : "off")}\n" +
                 "\n" +
                 state;
         }
@@ -70,6 +77,10 @@ public class TutorialOverlay : MonoBehaviour
                 "PRESS B TO JOIN\n" +
                 "PRESS Y TO SWITCH MODE\n" +
                 "PRESS A TO RECENTER\n" +
+                "\n" +
+                $"LAST INPUT:  {(_net == null || string.IsNullOrEmpty(_net.LastButton) ? "—" : _net.LastButton)}\n" +
+                $"LAST ACTION: {(_net == null || string.IsNullOrEmpty(_net.LastAction) ? "—" : _net.LastAction)}\n" +
+                $"CTRL: L={(_net != null && _net.LeftHandValid ? "ok" : "off")}  R={(_net != null && _net.RightHandValid ? "ok" : "off")}\n" +
                 "\n" +
                 state;
         }

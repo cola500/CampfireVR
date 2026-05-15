@@ -20,10 +20,14 @@ public class NetworkBootstrap : MonoBehaviour
     public Mode CurrentMode => mode;
     public string CurrentState => _state;
     public string LastButton => _lastButton;
+    public string LastAction => _lastAction;
     public bool IsEditingCode => _inputState == InputState.EditingCode;
     public string CodeDisplay => FormatCode();
     public int CodeSlot => _slotIndex;
     public int CodeLengthSlots => CodeLength;
+    public char CodeValue => _codeChars[Mathf.Clamp(_slotIndex, 0, CodeLength - 1)];
+    public bool LeftHandValid => InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).isValid;
+    public bool RightHandValid => InputDevices.GetDeviceAtXRNode(XRNode.RightHand).isValid;
     public string HostedAlias => _hostedAlias;
 
     private const string LanRoomName = "lan-campfire";
@@ -36,6 +40,7 @@ public class NetworkBootstrap : MonoBehaviour
     private string _joinCodeInput = "";
     private string _state = "Idle";
     private string _lastButton = "";
+    private string _lastAction = "";
     private string _hostedAlias = "";
     private bool _prevLPrimary, _prevLSecondary, _prevRPrimary, _prevRSecondary;
     private bool _loggedLeftInvalid, _loggedRightInvalid;
@@ -138,37 +143,47 @@ public class NetworkBootstrap : MonoBehaviour
 
     void OnLeftPrimary()
     {
-        if (_inputState == InputState.EditingCode) CycleSlot(-1);
-        else StartHost();
+        if (_inputState == InputState.EditingCode) { _lastAction = "X: prev letter"; CycleSlot(-1); }
+        else { _lastAction = "X: host"; StartHost(); }
     }
 
     void OnLeftSecondary()
     {
         if (_inputState == InputState.EditingCode)
         {
-            if (_slotIndex > 0) { _slotIndex--; _state = $"Slot {_slotIndex + 1} of {CodeLength}"; }
-            else ExitCodeEditor(false);
+            if (_slotIndex > 0)
+            {
+                _slotIndex--;
+                _lastAction = $"Y: prev slot → {_slotIndex + 1}";
+                _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
+            }
+            else { _lastAction = "Y: back"; ExitCodeEditor(false); }
         }
-        else ToggleMode();
+        else { _lastAction = "Y: toggle mode"; ToggleMode(); }
     }
 
     void OnRightPrimary()
     {
-        if (_inputState == InputState.EditingCode) CycleSlot(+1);
-        else Recenter();
+        if (_inputState == InputState.EditingCode) { _lastAction = "A: next letter"; CycleSlot(+1); }
+        else { _lastAction = "A: recenter"; Recenter(); }
     }
 
     void OnRightSecondary()
     {
         if (_inputState == InputState.EditingCode)
         {
-            if (_slotIndex >= CodeLength - 1) ExitCodeEditor(true);
-            else { _slotIndex++; _state = $"Slot {_slotIndex + 1} of {CodeLength}"; }
+            if (_slotIndex >= CodeLength - 1) { _lastAction = "B: join"; ExitCodeEditor(true); }
+            else
+            {
+                _slotIndex++;
+                _lastAction = $"B: next slot → {_slotIndex + 1}";
+                _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
+            }
         }
         else
         {
-            if (mode == Mode.Lan) StartClient();
-            else EnterCodeEditor();
+            if (mode == Mode.Lan) { _lastAction = "B: join LAN"; StartClient(); }
+            else { _lastAction = "B: enter code"; EnterCodeEditor(); }
         }
     }
 
@@ -226,7 +241,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (_busy) return;
         _inputState = InputState.EditingCode;
         _slotIndex = 0;
-        _state = $"Slot 1 of {CodeLength}";
+        _state = $"Slot 1 of {CodeLength} = {_codeChars[0]}";
     }
 
     void ExitCodeEditor(bool startClient)
@@ -246,6 +261,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (i < 0) i = 0;
         i = ((i + delta) % CodeAlphabet.Length + CodeAlphabet.Length) % CodeAlphabet.Length;
         _codeChars[_slotIndex] = CodeAlphabet[i];
+        _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
     }
 
     string FormatCode()
