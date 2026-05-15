@@ -85,9 +85,14 @@ public static class NetworkSetup
 
         var root = new GameObject("VoiceSpeaker");
         var audio = root.AddComponent<AudioSource>();
-        audio.spatialBlend = 0f;
+        audio.spatialBlend = 1f;
+        audio.rolloffMode = AudioRolloffMode.Linear;
+        audio.minDistance = 0.5f;
+        audio.maxDistance = 10f;
         audio.playOnAwake = false;
+        audio.dopplerLevel = 0f;
         root.AddComponent<Speaker>();
+        root.AddComponent<VoiceSpeakerPlacer>();
 
         PrefabUtility.SaveAsPrefabAsset(root, VoiceSpeakerPrefabPath);
         Object.DestroyImmediate(root);

@@ -117,9 +117,12 @@ Dissonance is a close second and is the cleaner architectural fit (voice over ou
 - Room name derivation: Relay mode uses the 6-character join code as the Photon room name; LAN mode uses the constant `"lan-campfire"`. Both peers reach the same name independently, so Photon Voice room membership lines up with NGO/Relay session membership without any extra UI.
 - Status strings: `Voice room joining… (CODE)` → `Voice connected (CODE)` → `Voice: left room` → `Voice: disconnected`.
 
-### Slice D — Spatial voice anchored at the head
-- Set the remote `Speaker`'s `AudioSource.spatialBlend = 1`.
-- Confirm voice direction matches where the other person's head sphere is (across the fire, slightly left, etc).
+### Slice D — Spatial voice anchored at the head  ✓ done
+
+- `VoiceSpeaker.prefab` regenerated with `AudioSource.spatialBlend = 1`, `AudioRolloffMode.Linear`, `minDistance = 0.5`, `maxDistance = 10`, `dopplerLevel = 0`.
+- Tiny `VoiceSpeakerPlacer` MonoBehaviour on the same prefab: in `OnEnable` finds the scene `RemoteRig` and reparents the freshly-spawned Speaker GameObject at local `(0, 1.2, 0)` — head height above the remote seat. Works because both peers' scenes have `RemoteRig` at the same world coords.
+- Photon `VoiceConnection` still auto-spawns the prefab from `SpeakerPrefab`; the Placer hooks in on the instantiation side, no Photon API surface touched.
+- 2-player assumption baked in: every incoming remote voice goes to the single `RemoteRig`. Fine for our vision; a per-player factory is a later slice if we ever sit three around the fire.
 
 ### Slice E — Cozy polish
 - Light volume curve (`AudioRolloffMode.Linear` with min=0.5 m / max=10 m) so voices feel close when across the fire and fade to nothing if someone wandered away.
