@@ -5,7 +5,13 @@ public class TutorialOverlay : MonoBehaviour
 {
     [SerializeField] private TextMesh text;
     [SerializeField] private float billboardSmoothing = 8f;
-    [SerializeField] private float notificationSeconds = 3f;
+    [SerializeField] private float notificationSeconds = 5f;
+
+    private const string UniversalLegend =
+        "X  host\n" +
+        "B  join / next / confirm\n" +
+        "Y  back / mode\n" +
+        "A  change / recenter";
 
     private NetworkBootstrap _net;
     private Camera _cam;
@@ -46,6 +52,8 @@ public class TutorialOverlay : MonoBehaviour
             if (!string.IsNullOrEmpty(state)) _notificationUntil = Time.time + notificationSeconds;
         }
         bool showNotification = Time.time < _notificationUntil;
+        string busySpinner = _net.IsBusy ? Spinner() : "";
+        string notification = showNotification ? state + busySpinner : "";
 
         switch (_net.CurrentPhase)
         {
@@ -58,31 +66,51 @@ public class TutorialOverlay : MonoBehaviour
                     "\n" +
                     _net.CodeDisplay + "\n" +
                     "\n" +
-                    "A / X   change\n" +
-                    (onLast ? "B       join\n" : "B       next\n") +
-                    "Y       back";
+                    (string.IsNullOrEmpty(notification) ? "" : notification + "\n\n") +
+                    "A  next letter\n" +
+                    "X  prev letter\n" +
+                    (onLast ? "B  join\n" : "B  next slot\n") +
+                    "Y  back";
                 break;
             }
 
             case NetworkBootstrap.Phase.Hosting:
             {
+                string body;
                 if (!string.IsNullOrEmpty(_net.HostedAlias))
                 {
-                    text.text =
-                        "🔥  YOUR FIRE\n" +
-                        "\n" +
-                        "code\n" +
+                    body =
+                        "share code\n" +
                         SpaceLetters(_net.HostedAlias) + "\n" +
                         "\n" +
-                        "waiting for friend";
+                        (string.IsNullOrEmpty(notification) ? "waiting for friend" + Spinner() : notification);
                 }
                 else
                 {
-                    text.text =
-                        "🔥  YOUR FIRE\n" +
-                        "\n" +
-                        "waiting for friend";
+                    body = string.IsNullOrEmpty(notification)
+                        ? "Creating fire" + Spinner()
+                        : notification;
                 }
+                text.text =
+                    "🔥  YOUR FIRE\n" +
+                    "\n" +
+                    body + "\n" +
+                    "\n" +
+                    UniversalLegend;
+                break;
+            }
+
+            case NetworkBootstrap.Phase.Connecting:
+            {
+                string body = string.IsNullOrEmpty(notification)
+                    ? "Joining fire" + Spinner()
+                    : notification;
+                text.text =
+                    "🔥  CAMPFIRE\n" +
+                    "\n" +
+                    body + "\n" +
+                    "\n" +
+                    UniversalLegend;
                 break;
             }
 
@@ -92,13 +120,29 @@ public class TutorialOverlay : MonoBehaviour
 
             case NetworkBootstrap.Phase.Idle:
             default:
+            {
+                string modeLine = $"mode · {_net.CurrentMode}";
                 text.text =
                     "🔥  CAMPFIRE\n" +
                     "\n" +
-                    "X    host\n" +
-                    "B    join" +
-                    (showNotification ? "\n\n" + state : "");
+                    UniversalLegend + "\n" +
+                    "\n" +
+                    modeLine +
+                    (string.IsNullOrEmpty(notification) ? "" : "\n" + notification);
                 break;
+            }
+        }
+    }
+
+    static string Spinner()
+    {
+        int n = (int)(Time.time * 2.5f) % 4;
+        switch (n)
+        {
+            case 1: return " .";
+            case 2: return " . .";
+            case 3: return " . . .";
+            default: return "";
         }
     }
 

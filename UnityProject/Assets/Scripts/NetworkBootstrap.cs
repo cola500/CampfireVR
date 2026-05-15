@@ -12,7 +12,7 @@ public class NetworkBootstrap : MonoBehaviour
 {
     public enum Mode { Lan, Relay }
     public enum InputState { Idle, EditingCode }
-    public enum Phase { Idle, Hosting, Joining, Connected }
+    public enum Phase { Idle, Hosting, Joining, Connecting, Connected }
 
     [SerializeField] private string serverAddress = "127.0.0.1";
     [SerializeField] private ushort port = 7777;
@@ -30,6 +30,7 @@ public class NetworkBootstrap : MonoBehaviour
     public bool LeftHandValid => InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).isValid;
     public bool RightHandValid => InputDevices.GetDeviceAtXRNode(XRNode.RightHand).isValid;
     public string HostedAlias => _hostedAlias;
+    public bool IsBusy => _busy;
 
     public Phase CurrentPhase
     {
@@ -38,9 +39,15 @@ public class NetworkBootstrap : MonoBehaviour
             if (_inputState == InputState.EditingCode) return Phase.Joining;
             var nm = NetworkManager.Singleton;
             if (nm == null) return Phase.Idle;
-            if (nm.IsClient && !nm.IsHost) return Phase.Connected;
-            if (nm.IsHost) return nm.ConnectedClientsIds.Count >= 2 ? Phase.Connected : Phase.Hosting;
-            if (_busy && mode == Mode.Relay) return Phase.Hosting;
+            if (nm.IsClient && !nm.IsHost)
+                return nm.IsConnectedClient ? Phase.Connected : Phase.Connecting;
+            if (nm.IsHost)
+                return nm.ConnectedClientsIds.Count >= 2 ? Phase.Connected : Phase.Hosting;
+            if (_busy && mode == Mode.Relay)
+            {
+                if (string.IsNullOrEmpty(_joinCodeInput)) return Phase.Hosting;
+                return Phase.Connecting;
+            }
             return Phase.Idle;
         }
     }
@@ -105,13 +112,13 @@ public class NetworkBootstrap : MonoBehaviour
     {
         var nm = NetworkManager.Singleton;
         if (nm == null) return;
-        if (nm.IsHost && id != nm.LocalClientId) _state = "Friend joined the fire";
+        if (nm.IsHost && id != nm.LocalClientId) _state = "Friend joined";
         else if (nm.IsClient && id == nm.LocalClientId) _state = "Connected";
     }
 
     void OnClientDisconnected(ulong id)
     {
-        _state = "Disconnected";
+        _state = "Friend left";
     }
 
     void Update()
@@ -170,9 +177,9 @@ public class NetworkBootstrap : MonoBehaviour
             {
                 _slotIndex--;
                 _lastAction = $"Y: prev slot → {_slotIndex + 1}";
-                _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
+                _state = $"Slot {_slotIndex + 1} → {_codeChars[_slotIndex]}";
             }
-            else { _lastAction = "Y: back"; ExitCodeEditor(false); }
+            else { _lastAction = "Y: back"; _state = "Cancelled"; ExitCodeEditor(false); }
         }
         else { _lastAction = "Y: toggle mode"; ToggleMode(); }
     }
@@ -192,7 +199,7 @@ public class NetworkBootstrap : MonoBehaviour
             {
                 _slotIndex++;
                 _lastAction = $"B: next slot → {_slotIndex + 1}";
-                _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
+                _state = $"Slot {_slotIndex + 1} → {_codeChars[_slotIndex]}";
             }
         }
         else
@@ -240,7 +247,7 @@ public class NetworkBootstrap : MonoBehaviour
     void ToggleMode()
     {
         mode = (mode == Mode.Lan) ? Mode.Relay : Mode.Lan;
-        _state = $"Mode: {mode}";
+        _state = $"Mode · {mode}";
     }
 
     void Recenter()
@@ -256,7 +263,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (_busy) return;
         _inputState = InputState.EditingCode;
         _slotIndex = 0;
-        _state = $"Slot 1 of {CodeLength} = {_codeChars[0]}";
+        _state = "Enter code";
     }
 
     void ExitCodeEditor(bool startClient)
@@ -276,7 +283,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (i < 0) i = 0;
         i = ((i + delta) % CodeAlphabet.Length + CodeAlphabet.Length) % CodeAlphabet.Length;
         _codeChars[_slotIndex] = CodeAlphabet[i];
-        _state = $"Slot {_slotIndex + 1} of {CodeLength} = {_codeChars[_slotIndex]}";
+        _state = $"Slot {_slotIndex + 1} → {_codeChars[_slotIndex]}";
     }
 
     string FormatCode()
@@ -306,29 +313,31 @@ public class NetworkBootstrap : MonoBehaviour
         if (_busy) return;
         if (mode == Mode.Lan)
         {
+            _state = "Lighting LAN fire";
             if (!ConfigureLanTransport()) return;
             if (NetworkManager.Singleton.StartHost())
             {
-                _state = $"Waiting for friend on LAN :{port}…";
+                _state = "Waiting for friend";
                 _voiceBootstrap?.JoinRoom(LanRoomName);
             }
-            else _state = "LAN host failed";
+            else _state = "Host failed";
             return;
         }
 
-        if (_services == null || !_services.IsReady) { _state = "Signing in…"; return; }
+        if (_services == null || !_services.IsReady) { _state = "Signing in"; return; }
         _busy = true;
-        _state = "Creating campfire session…";
+        _state = "Creating fire";
 
         var realCode = await _services.HostRelayAsync();
         if (string.IsNullOrEmpty(realCode))
         {
             _busy = false;
-            _state = "Relay host failed";
+            _state = "Couldn't start fire";
             return;
         }
 
         _hostedAlias = GenerateAlias();
+        _state = "Sharing code";
         _voiceBootstrap?.JoinRoom(_hostedAlias);
 
         bool roomReady = false;
@@ -336,7 +345,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (roomReady) _voiceBootstrap.SetRoomProperty(RelayCodeProperty, realCode);
 
         _busy = false;
-        _state = roomReady ? "Waiting for friend…" : "Voice room failed";
+        _state = roomReady ? "Waiting for friend" : "Voice room failed";
     }
 
     async void StartClient()
@@ -344,22 +353,23 @@ public class NetworkBootstrap : MonoBehaviour
         if (_busy) return;
         if (mode == Mode.Lan)
         {
+            _state = "Joining fire";
             if (!ConfigureLanTransport()) return;
             if (NetworkManager.Singleton.StartClient())
             {
-                _state = $"Connecting → {serverAddress}…";
+                _state = "Joining fire";
                 _voiceBootstrap?.JoinRoom(LanRoomName);
             }
-            else _state = "LAN client failed";
+            else _state = "Join failed";
             return;
         }
 
-        if (_services == null || !_services.IsReady) { _state = "Signing in…"; return; }
-        if (string.IsNullOrEmpty(_joinCodeInput)) { _state = "No code entered"; return; }
+        if (_services == null || !_services.IsReady) { _state = "Signing in"; return; }
+        if (string.IsNullOrEmpty(_joinCodeInput)) { _state = "No code"; return; }
 
         var alias = _joinCodeInput;
         _busy = true;
-        _state = $"Looking for {alias}…";
+        _state = "Looking for fire";
 
         _voiceBootstrap?.JoinRoom(alias);
 
@@ -368,7 +378,7 @@ public class NetworkBootstrap : MonoBehaviour
         if (!joined)
         {
             _busy = false;
-            _state = "No campfire with that code";
+            _state = "No fire found";
             return;
         }
 
@@ -376,14 +386,14 @@ public class NetworkBootstrap : MonoBehaviour
         if (string.IsNullOrEmpty(realCode))
         {
             _busy = false;
-            _state = "Host's code not found";
+            _state = "Host's code missing";
             return;
         }
 
-        _state = "Connecting…";
+        _state = "Joining fire";
         bool ok = await _services.JoinRelayAsync(realCode);
         _busy = false;
-        if (!ok) _state = "Couldn't reach campfire";
+        if (!ok) _state = "Couldn't reach fire";
     }
 
     async void Stop()
