@@ -101,7 +101,7 @@ Scene has `NetworkManager` (NGO + UnityTransport) and `NetworkBootstrap`. `serve
 
 The OnGUI overlay shows the local IPv4 addresses. To pair two Quests: read the host's IP off its overlay, set that as `serverAddress` on the second build, rebuild, deploy.
 
-When it works: a small sphere appears at the remote player's head and rotates as they move. Hands are not synced yet. No voice.
+When it works: the static `PlayerSlot_B` placeholder disappears and the remote player's head appears anchored at the `RemoteRig` (mirror of `VRRig` across the fire), facing the campfire. The owner's head pose is broadcast in seat-relative coordinates so the remote always sits at their seat regardless of where the owner physically is. On disconnect, `PlayerSlot_B` returns. Hands are not synced yet. No voice.
 
 ## MCP workflow
 
@@ -119,7 +119,7 @@ The whole project was authored through Claude Code calling `mcp__mcp-unity__*` t
 - Hand placeholders sit on the controller grip tracking point, not the palm — they feel slightly offset.
 - `serverAddress` is baked into the scene at build time. No runtime IP entry, no LAN discovery.
 - No graceful Stop on Quest builds — re-launch the app to disconnect.
-- `PlayerSlot_B` and a remote `PlayerHead` can co-exist visually; not yet de-duplicated.
+- ~~`PlayerSlot_B` and a remote `PlayerHead` can co-exist visually; not yet de-duplicated.~~ Resolved: remote head is anchored at `RemoteRig` and `PlayerSlot_B`'s mesh hides while occupied.
 - Floor tracking origin alone was not enough on Quest 3; we use Device origin + an explicit `CameraOffset y=1.2`. See [docs/retro-log.md](docs/retro-log.md).
 
 ## Next slices
