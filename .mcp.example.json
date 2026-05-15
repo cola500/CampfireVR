@@ -9,7 +9,7 @@
     },
     "hzdb": {
       "command": "npx",
-      "args": ["-y", "hzdb", "mcp", "server"]
+      "args": ["-y", "@meta-quest/hzdb", "mcp", "server"]
     }
   }
 }
