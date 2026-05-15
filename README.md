@@ -102,18 +102,22 @@ Toggle with **M** in the Editor (the on-screen `Mode:` label flips). Default is 
 
 | Action | Editor (Mac) | Quest |
 |---|---|---|
-| Toggle Mode | **M** | not bound yet |
+| Toggle Mode | **M** | left controller **X** |
 | Start as host | **H** | right controller **A** |
 | Start as client | **C** | right controller **B** |
-| Stop | **X** | re-launch app |
+| Stop | **X** | left controller **Y** |
 
 **LAN flow:** read the host's IP from its overlay, set that as `serverAddress` on the client build, rebuild, deploy.
 
 **Relay flow:**
-1. On host: switch to Relay (`M`), press **H** → overlay shows `YOUR JOIN CODE: ABCDEF`.
+
+1. On host (Quest): press **left X** to switch to Relay. Press **right A** to host. The overlay shows a large cozy `CAMPFIRE CODE` with the 6 characters spaced apart and a gentle warm pulse. State line below reads `Waiting for friend…`.
 2. Share the 6-character code out of band (SMS, Discord) to the remote person.
-3. On client: switch to Relay (`M`), type the code in the on-screen "Join code:" field, press **C** (Editor) or right controller **B** (Quest, after typing via the system keyboard).
-4. NGO comes up over Relay; head/hands/breathing sync exactly as on LAN.
+3. On client (Quest): press **left X** to switch to Relay. Press **right B** to join. With no code entered yet, this opens Quest's system keyboard with the prompt "Campfire code"; type the 6 characters and confirm. The state line walks `Enter the campfire code… → Connecting to ABCDEF… → Connected`.
+4. On the host, the state flips to `Friend joined the fire`. Head, hands, and presence breathing sync over Relay exactly as on LAN.
+5. **Stop**: press **left Y** on either side. Disconnects gracefully and clears the entered code.
+
+In the Editor, the same actions are bound to **M** / **H** / **C** / **X**; an extra "Join code (editor):" text field is shown so you can type without the system keyboard.
 
 Unity Dashboard prerequisites: Authentication and Relay services must be Active for the project's `cloudProjectId`. Anonymous sign-in is automatic; no UI.
 
