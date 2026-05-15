@@ -16,6 +16,8 @@ Lessons that were not obvious before we shipped the slice they came from.
 
 ## Editor / MCP workflow
 
+**A single MCP server with a bad tool schema can brick the whole Claude Code session.** Adding `@meta-quest/hzdb` to `.mcp.json` produced `API Error: 400 … tools.18.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level` on the very first prompt, and every subsequent prompt failed identically until the server was removed. The Anthropic API rejects the entire `tools` array when one tool is invalid, so the tools that *would* work — including all of mcp-unity's — also stopped working. We ruled out mcp-unity quickly because (a) the only delta from a working session was the new `hzdb` block, and (b) removing that single block restored normal operation without touching mcp-unity. The root cause is well-documented upstream (`anthropics/claude-code` issues #4886, #10606, #30212) and Anthropic has closed every request to relax the validation, so the realistic fix path is on the MCP author. See `docs/tooling-known-issues.md` and `docs/hzdb-investigation.md`. Lesson: when adding a new MCP server, expect "all-or-nothing" failure mode — there's no graceful degradation per tool.
+
 **`recompile_scripts` does not refresh the asset database.** A `.cs` written via MCP isn't visible to Unity until you call `Assets/Refresh` (or focus the Editor). Symptom: `update_component` fails with `Component type 'X' not found in Unity` immediately after writing the script.
 
 **`save_scene` blocks in Play mode.** If a setup menu modifies the scene during Play, the changes only affect the running instance — they don't persist. Stop Play, re-run the menu, then save. We hit this when fixing the transport binding.
