@@ -89,17 +89,33 @@ $adb devices                          # expect your Quest serial
 
 The APK installs and launches automatically. Falling back to flat-screen Editor view: enable `Main Camera` and disable `VRRig`.
 
-## LAN multiplayer testing
+## Multiplayer testing
 
-Scene has `NetworkManager` (NGO + UnityTransport) and `NetworkBootstrap`. `serverAddress` defaults to `127.0.0.1` — edit it in the scene before building if the host runs on a different machine.
+Scene has `NetworkManager` (NGO + UnityTransport), `NetworkBootstrap`, and `ServicesBootstrap`. The bootstrap supports two modes:
+
+| Mode | Use | How to start |
+|---|---|---|
+| **LAN** | same Wi-Fi / same machine | direct IP — set `serverAddress` in the scene before building |
+| **Relay** | two devices on different internet connections | Unity Relay free tier; short join code shared out of band |
+
+Toggle with **M** in the Editor (the on-screen `Mode:` label flips). Default is **LAN**.
 
 | Action | Editor (Mac) | Quest |
 |---|---|---|
-| Start as host | press **H** | right controller **A** |
-| Start as client | press **C** | right controller **B** |
-| Stop | press **X** | re-launch app |
+| Toggle Mode | **M** | not bound yet |
+| Start as host | **H** | right controller **A** |
+| Start as client | **C** | right controller **B** |
+| Stop | **X** | re-launch app |
 
-The OnGUI overlay shows the local IPv4 addresses. To pair two Quests: read the host's IP off its overlay, set that as `serverAddress` on the second build, rebuild, deploy.
+**LAN flow:** read the host's IP from its overlay, set that as `serverAddress` on the client build, rebuild, deploy.
+
+**Relay flow:**
+1. On host: switch to Relay (`M`), press **H** → overlay shows `YOUR JOIN CODE: ABCDEF`.
+2. Share the 6-character code out of band (SMS, Discord) to the remote person.
+3. On client: switch to Relay (`M`), type the code in the on-screen "Join code:" field, press **C** (Editor) or right controller **B** (Quest, after typing via the system keyboard).
+4. NGO comes up over Relay; head/hands/breathing sync exactly as on LAN.
+
+Unity Dashboard prerequisites: Authentication and Relay services must be Active for the project's `cloudProjectId`. Anonymous sign-in is automatic; no UI.
 
 When it works: the static `PlayerSlot_B` placeholder disappears and the remote player's head appears anchored at the `RemoteRig` (mirror of `VRRig` across the fire), facing the campfire. The owner's head pose is broadcast in seat-relative coordinates so the remote always sits at their seat regardless of where the owner physically is. **Two small cubes** also appear at the remote's hand positions, driven by NGO `NetworkVariable<Vector3>` / `NetworkVariable<Quaternion>` pairs — same seat-relative transform applied to `LeftHandAnchor` / `RightHandAnchor`. On disconnect, `PlayerSlot_B` returns. No finger tracking, no IK, no voice.
 

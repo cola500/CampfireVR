@@ -1563,6 +1563,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NetworkBootstrap
   serverAddress: 127.0.0.1
   port: 7777
+  mode: 0
 --- !u!4 &1398104310
 Transform:
   m_ObjectHideFlags: 0
