@@ -100,12 +100,13 @@ Scene has `NetworkManager` (NGO + UnityTransport), `NetworkBootstrap`, and `Serv
 
 Toggle with **M** in the Editor (the on-screen `Mode:` label flips). Default is **LAN**.
 
-| Action | Editor (Mac) | Quest |
+| Action | Quest | Editor (Mac) |
 |---|---|---|
-| Toggle Mode | **M** | left controller **X** |
-| Start as host | **H** | right controller **A** |
-| Start as client | **C** | right controller **B** |
-| Stop | **X** | left controller **Y** |
+| Host session | left controller **X** | **H** |
+| Join session | right controller **B** | **C** |
+| Switch LAN ↔ Relay | left controller **Y** | **M** |
+| Recenter seat/view | right controller **A** | — |
+| Stop / disconnect | take headset off or quit via Meta button | **X** |
 
 **LAN flow:** read the host's IP from its overlay, set that as `serverAddress` on the client build, rebuild, deploy.
 

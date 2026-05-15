@@ -30,9 +30,9 @@ Each Quest needs the current build of `CampfireRoom.apk` installed.
 ### Per-session setup (~5 min)
 
 1. Pick a host. Doesn't matter which; the experience is symmetric.
-2. Host opens the app first, presses **left X** to switch to Relay, then **right A** to host. The big `CAMPFIRE CODE` appears. The state line should read `Waiting for friend…`.
+2. Host opens the app first, presses **left Y** to switch to Relay, then **left X** to host. The big `CAMPFIRE CODE` appears. The state line should read `Waiting for friend…`.
 3. Host reads the code out loud over a phone call / Discord / SMS.
-4. Guest opens the app, presses **left X** to switch to Relay, then **right B**. Quest's system keyboard pops up — type the 6 characters, press Done.
+4. Guest opens the app, presses **left Y** to switch to Relay, then **right B**. Quest's system keyboard pops up — type the 6 characters, press Done.
 5. State should walk `Enter the campfire code… → Connecting to ABCDEF… → Connected` and on the host's side `Friend joined the fire`.
 6. Within ~3 seconds, `Voice connected (ABCDEF)` should appear on both. Say *"can you hear me?"* — confirm voice both ways before continuing.
 

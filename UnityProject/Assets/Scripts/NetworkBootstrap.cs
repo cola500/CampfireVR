@@ -28,6 +28,8 @@ public class NetworkBootstrap : MonoBehaviour
     private GUIStyle _codeStyle;
     private GUIStyle _labelStyle;
     private GUIStyle _stateStyle;
+    private GUIStyle _promptStyle;
+    private GUIStyle _modeStyle;
 
     void Awake()
     {
@@ -78,8 +80,8 @@ public class NetworkBootstrap : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.M)) ToggleMode();
         }
 
-        PollController(XRNode.LeftHand,  ref _prevLPrimary, ref _prevLSecondary, ToggleMode, Stop);
-        PollController(XRNode.RightHand, ref _prevRPrimary, ref _prevRSecondary, StartHost,  StartClient);
+        PollController(XRNode.LeftHand,  ref _prevLPrimary, ref _prevLSecondary, StartHost, ToggleMode);
+        PollController(XRNode.RightHand, ref _prevRPrimary, ref _prevRSecondary, Recenter,  StartClient);
 
         if (_kbd != null)
         {
@@ -112,6 +114,14 @@ public class NetworkBootstrap : MonoBehaviour
     {
         mode = (mode == Mode.Lan) ? Mode.Relay : Mode.Lan;
         _state = $"Mode: {mode}";
+    }
+
+    void Recenter()
+    {
+        var subs = new List<XRInputSubsystem>();
+        SubsystemManager.GetSubsystems(subs);
+        foreach (var s in subs) s.TryRecenter();
+        _state = "Recentered";
     }
 
     async void StartHost()
@@ -217,6 +227,16 @@ public class NetworkBootstrap : MonoBehaviour
         {
             fontSize = 26, alignment = TextAnchor.MiddleCenter,
         };
+        _promptStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 22, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
+        };
+        _promptStyle.normal.textColor = new Color(1f, 0.85f, 0.62f, 0.85f);
+        _modeStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 18, alignment = TextAnchor.MiddleCenter,
+        };
+        _modeStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f, 0.6f);
     }
 
     static string SpacedCode(string code)
@@ -235,13 +255,19 @@ public class NetworkBootstrap : MonoBehaviour
     {
         EnsureStyles();
 
-        GUI.Label(new Rect(20, 20, 1100, 30),
-            $"Mode: {mode}    (left X=Mode  left Y=Stop  right A=Host  right B=Join | H C X M in Editor)");
-        GUI.Label(new Rect(20, 50, 1100, 30), $"Local IPs: {string.Join(", ", GetLocalIPv4())}");
+        var nm = NetworkManager.Singleton;
+        bool connected = nm != null && (nm.IsHost || nm.IsClient);
 
         float w = Screen.width;
-        float topY = Screen.height * 0.18f;
+        GUI.Label(new Rect(0, 20, w, 24), $"Mode: {mode}", _modeStyle);
 
+        if (Application.isEditor)
+        {
+            GUI.Label(new Rect(20, 50, 1100, 24),
+                $"Local IPs: {string.Join(", ", GetLocalIPv4())}    (editor keys: H host, C join, M mode, X stop)");
+        }
+
+        float topY = Screen.height * 0.18f;
         if (mode == Mode.Relay && _services != null && _services.InRelaySession && !string.IsNullOrEmpty(_services.JoinCode))
         {
             GUI.Label(new Rect(0, topY, w, 40), "CAMPFIRE CODE", _labelStyle);
@@ -252,12 +278,21 @@ public class NetworkBootstrap : MonoBehaviour
             GUI.color = prev;
         }
 
-        GUI.Label(new Rect(0, Screen.height * 0.7f, w, 40), _state, _stateStyle);
+        GUI.Label(new Rect(0, Screen.height * 0.70f, w, 40), _state, _stateStyle);
+
+        if (!connected)
+        {
+            float py = Screen.height * 0.78f;
+            GUI.Label(new Rect(0, py + 0,  w, 28), "PRESS X TO HOST",        _promptStyle);
+            GUI.Label(new Rect(0, py + 28, w, 28), "PRESS B TO JOIN",        _promptStyle);
+            GUI.Label(new Rect(0, py + 56, w, 28), "PRESS Y TO SWITCH MODE", _promptStyle);
+            GUI.Label(new Rect(0, py + 84, w, 28), "PRESS A TO RECENTER",    _promptStyle);
+        }
 
         if (mode == Mode.Relay && Application.isEditor)
         {
-            GUI.Label(new Rect(20, 90, 220, 30), "Join code (editor):");
-            _joinCodeInput = GUI.TextField(new Rect(240, 90, 220, 30), _joinCodeInput ?? "", 8).ToUpper();
+            GUI.Label(new Rect(20, 80, 220, 28), "Join code (editor):");
+            _joinCodeInput = GUI.TextField(new Rect(240, 80, 220, 28), _joinCodeInput ?? "", 8).ToUpper();
         }
     }
 
