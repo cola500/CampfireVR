@@ -15,10 +15,13 @@ public class NetworkBootstrap : MonoBehaviour
     [SerializeField] private ushort port = 7777;
     [SerializeField] private Mode mode = Mode.Lan;
 
+    private const string LanRoomName = "lan-campfire";
+
     private string _joinCodeInput = "";
     private string _state = "Idle";
     private bool _prevLPrimary, _prevLSecondary, _prevRPrimary, _prevRSecondary;
     private ServicesBootstrap _services;
+    private VoiceBootstrap _voiceBootstrap;
     private bool _busy;
     private TouchScreenKeyboard _kbd;
 
@@ -29,6 +32,7 @@ public class NetworkBootstrap : MonoBehaviour
     void Awake()
     {
         _services = GetComponent<ServicesBootstrap>();
+        _voiceBootstrap = GetComponent<VoiceBootstrap>();
     }
 
     void Start()
@@ -116,7 +120,12 @@ public class NetworkBootstrap : MonoBehaviour
         if (mode == Mode.Lan)
         {
             if (!ConfigureLanTransport()) return;
-            _state = NetworkManager.Singleton.StartHost() ? $"Waiting for friend on LAN :{port}…" : "LAN host failed";
+            if (NetworkManager.Singleton.StartHost())
+            {
+                _state = $"Waiting for friend on LAN :{port}…";
+                _voiceBootstrap?.JoinRoom(LanRoomName);
+            }
+            else _state = "LAN host failed";
         }
         else
         {
@@ -125,7 +134,12 @@ public class NetworkBootstrap : MonoBehaviour
             _state = "Creating campfire session…";
             var code = await _services.HostRelayAsync();
             _busy = false;
-            _state = code != null ? "Waiting for friend…" : "Relay host failed";
+            if (code != null)
+            {
+                _state = "Waiting for friend…";
+                _voiceBootstrap?.JoinRoom(code);
+            }
+            else _state = "Relay host failed";
         }
     }
 
@@ -135,7 +149,12 @@ public class NetworkBootstrap : MonoBehaviour
         if (mode == Mode.Lan)
         {
             if (!ConfigureLanTransport()) return;
-            _state = NetworkManager.Singleton.StartClient() ? $"Connecting → {serverAddress}…" : "LAN client failed";
+            if (NetworkManager.Singleton.StartClient())
+            {
+                _state = $"Connecting → {serverAddress}…";
+                _voiceBootstrap?.JoinRoom(LanRoomName);
+            }
+            else _state = "LAN client failed";
         }
         else
         {
@@ -157,12 +176,14 @@ public class NetworkBootstrap : MonoBehaviour
             _state = $"Connecting to {_joinCodeInput}…";
             bool ok = await _services.JoinRelayAsync(_joinCodeInput);
             _busy = false;
-            if (!ok) _state = "Could not join — check the code";
+            if (ok) _voiceBootstrap?.JoinRoom(_joinCodeInput);
+            else _state = "Could not join — check the code";
         }
     }
 
     async void Stop()
     {
+        _voiceBootstrap?.LeaveRoom();
         if (_services != null && _services.InRelaySession)
             await _services.LeaveRelayAsync();
         var nm = NetworkManager.Singleton;

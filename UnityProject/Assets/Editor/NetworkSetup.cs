@@ -1,4 +1,5 @@
 using System.IO;
+using Photon.Voice.Unity;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEditor;
@@ -72,5 +73,56 @@ public static class NetworkSetup
         EditorSceneManager.SaveOpenScenes();
 
         Debug.Log("[NetworkSetup] NetworkManager configured.");
+    }
+
+    private const string VoiceSpeakerPrefabPath = "Assets/Prefabs/VoiceSpeaker.prefab";
+
+    [MenuItem("Tools/Voice Setup/Create VoiceSpeaker Prefab")]
+    public static void CreateVoiceSpeakerPrefab()
+    {
+        Directory.CreateDirectory("Assets/Prefabs");
+        AssetDatabase.Refresh();
+
+        var root = new GameObject("VoiceSpeaker");
+        var audio = root.AddComponent<AudioSource>();
+        audio.spatialBlend = 0f;
+        audio.playOnAwake = false;
+        root.AddComponent<Speaker>();
+
+        PrefabUtility.SaveAsPrefabAsset(root, VoiceSpeakerPrefabPath);
+        Object.DestroyImmediate(root);
+
+        Debug.Log($"[NetworkSetup] VoiceSpeaker prefab saved: {VoiceSpeakerPrefabPath}");
+    }
+
+    [MenuItem("Tools/Voice Setup/Wire VoiceConnection")]
+    public static void WireVoiceConnection()
+    {
+        var voice = Object.FindFirstObjectByType<VoiceConnection>();
+        if (voice == null) { Debug.LogError("[NetworkSetup] No VoiceConnection in scene"); return; }
+
+        var recorder = voice.GetComponent<Recorder>();
+        if (recorder == null) recorder = voice.gameObject.AddComponent<Recorder>();
+        recorder.TransmitEnabled = true;
+
+        var speakerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VoiceSpeakerPrefabPath);
+        if (speakerPrefab == null)
+        {
+            Debug.LogError("[NetworkSetup] VoiceSpeaker prefab missing — run Create VoiceSpeaker Prefab first.");
+            return;
+        }
+
+        var so = new SerializedObject(voice);
+        var primaryRecorderProp = so.FindProperty("primaryRecorder");
+        var speakerPrefabProp = so.FindProperty("speakerPrefab");
+        if (primaryRecorderProp != null) primaryRecorderProp.objectReferenceValue = recorder;
+        if (speakerPrefabProp != null) speakerPrefabProp.objectReferenceValue = speakerPrefab;
+        so.ApplyModifiedProperties();
+
+        EditorUtility.SetDirty(voice);
+        EditorSceneManager.SaveOpenScenes();
+
+        Debug.Log($"[NetworkSetup] VoiceConnection wired: Recorder + SpeakerPrefab. " +
+                  $"primaryRecorder set: {primaryRecorderProp != null}, speakerPrefab set: {speakerPrefabProp != null}");
     }
 }

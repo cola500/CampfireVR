@@ -1559,6 +1559,7 @@ GameObject:
   - component: {fileID: 1398104311}
   - component: {fileID: 1398104313}
   - component: {fileID: 1398104312}
+  - component: {fileID: 1398104314}
   m_Layer: 0
   m_Name: NetworkBootstrap
   m_TagString: Untagged
@@ -1625,8 +1626,8 @@ MonoBehaviour:
   ApplyDontDestroyOnLoad: 1
   runInBackground: 1
   statsResetInterval: 1000
-  speakerPrefab: {fileID: 0}
-  primaryRecorder: {fileID: 0}
+  speakerPrefab: {fileID: 7869412483399508651, guid: b027d7433791640b48347a795a70d10c, type: 3}
+  primaryRecorder: {fileID: 1398104314}
   usePrimaryRecorder: 0
   cppCompatibilityMode: 0
   Settings:
@@ -1658,6 +1659,49 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72d1a8352d3194cf78ea000613d4f6d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoiceBootstrap
+--- !u!114 &1398104314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1398104308}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91175dcc15224463780e01a8a98b1b60, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhotonVoice::Photon.Voice.Unity.Recorder
+  voiceDetection: 0
+  voiceDetectionThreshold: 0.01
+  voiceDetectionDelayMs: 500
+  interestGroup: 0
+  useTargetPlayers: 0
+  targetPlayers: 
+  debugEchoMode: 0
+  reliableMode: 0
+  encrypt: 0
+  transmitEnabled: 1
+  samplingRate: 24000
+  frameDuration: 40000
+  bitrate: 30000
+  sourceType: 0
+  microphoneType: 0
+  audioClip: {fileID: 0}
+  loopAudioClip: 1
+  recordingEnabled: 1
+  audioSessionParameters:
+    Category: 4
+    Mode: 1
+    CategoryOptions: 0800000004000000
+  editorAudioSessionPreset: 1
+  androidMicrophoneSettings:
+    EnableAEC: 1
+    EnableAGC: 1
+    EnableNS: 1
+  stopRecordingWhenPaused: 0
+  useOnAudioFilterRead: 0
+  useMicrophoneTypeFallback: 1
+  recordWhenJoined: 1
 --- !u!1 &1487002664
 GameObject:
   m_ObjectHideFlags: 0

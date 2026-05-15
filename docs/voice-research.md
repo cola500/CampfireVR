@@ -109,10 +109,13 @@ Dissonance is a close second and is the cleaner architectural fit (voice over ou
 - Verified states observed: `PeerCreated → ConnectingToNameServer → ConnectedToNameServer → ConnectingToMasterServer → ConnectedToMasterServer → JoinedLobby`.
 - No Recorder, no Speaker, no room join. Just connectivity.
 
-### Slice C — Mono voice between two Quests
-- Local Quest gets a `Recorder` driving Photon Voice from `Microphone.devices[0]`.
-- Remote `PlayerHead` prefab gets a `Speaker` component routed through a non-spatial `AudioSource`.
-- Test: two Quests on different networks, hear each other talk.
+### Slice C — Mono voice between two Quests  ✓ done
+
+- `Recorder` added to the same GameObject as `VoiceConnection`; wired as `PrimaryRecorder`.
+- `Assets/Prefabs/VoiceSpeaker.prefab` (AudioSource with `spatialBlend = 0` + `Speaker` component) registered as `VoiceConnection.SpeakerPrefab`. Photon auto-instantiates one Speaker per remote voice stream.
+- `VoiceBootstrap.JoinRoom(name)` / `LeaveRoom()` exposed. Called from `NetworkBootstrap` after Host/Client succeeds.
+- Room name derivation: Relay mode uses the 6-character join code as the Photon room name; LAN mode uses the constant `"lan-campfire"`. Both peers reach the same name independently, so Photon Voice room membership lines up with NGO/Relay session membership without any extra UI.
+- Status strings: `Voice room joining… (CODE)` → `Voice connected (CODE)` → `Voice: left room` → `Voice: disconnected`.
 
 ### Slice D — Spatial voice anchored at the head
 - Set the remote `Speaker`'s `AudioSource.spatialBlend = 1`.

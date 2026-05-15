@@ -29,6 +29,7 @@ Chosen direction: **Photon Voice 2 (free tier)**. Full rationale and alternative
 
 - ✓ **Voice A — Quest microphone capture probe.** `MicrophoneTest.cs` reads RMS, renders OnGUI level bar. `RECORD_AUDIO` permission, mic gain, sample window all verified.
 - ✓ **Voice B — Photon Voice bootstrap.** Photon Voice 2 imported from Asset Store. `VoiceBootstrap.cs` calls `VoiceConnection.ConnectUsingSettings()` and surfaces the `Client.StateChanged` cycle as `Voice: …` in the overlay. AppId lives in `PhotonServerSettings.asset` only.
+- ✓ **Voice C — Minimal remote voice.** `Recorder` on `NetworkBootstrap`, `VoiceSpeaker.prefab` (non-spatial `AudioSource` + `Speaker`) auto-instantiated by `VoiceConnection.SpeakerPrefab`. `VoiceBootstrap.JoinRoom/LeaveRoom` ties Photon room name to NGO Relay code (or `lan-campfire`), so voice membership tracks campfire membership without extra UI.
 - **Voice C — Mono voice between two Quests.** `Recorder` local + `Speaker` on remote `PlayerHead`. "Hello from Stockholm" moment.
 - **Voice D — Spatial voice.** `Speaker.AudioSource.spatialBlend = 1` so the voice comes from the right side of the fire.
 - **Voice E — Cozy polish.** Distance falloff, noise suppression, optional speech-bobbing affordance.
