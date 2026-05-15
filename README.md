@@ -101,7 +101,7 @@ Scene has `NetworkManager` (NGO + UnityTransport) and `NetworkBootstrap`. `serve
 
 The OnGUI overlay shows the local IPv4 addresses. To pair two Quests: read the host's IP off its overlay, set that as `serverAddress` on the second build, rebuild, deploy.
 
-When it works: the static `PlayerSlot_B` placeholder disappears and the remote player's head appears anchored at the `RemoteRig` (mirror of `VRRig` across the fire), facing the campfire. The owner's head pose is broadcast in seat-relative coordinates so the remote always sits at their seat regardless of where the owner physically is. On disconnect, `PlayerSlot_B` returns. Hands are not synced yet. No voice.
+When it works: the static `PlayerSlot_B` placeholder disappears and the remote player's head appears anchored at the `RemoteRig` (mirror of `VRRig` across the fire), facing the campfire. The owner's head pose is broadcast in seat-relative coordinates so the remote always sits at their seat regardless of where the owner physically is. **Two small cubes** also appear at the remote's hand positions, driven by NGO `NetworkVariable<Vector3>` / `NetworkVariable<Quaternion>` pairs — same seat-relative transform applied to `LeftHandAnchor` / `RightHandAnchor`. On disconnect, `PlayerSlot_B` returns. No finger tracking, no IK, no voice.
 
 ## MCP workflow
 
