@@ -11,32 +11,66 @@ A 15–20 minute structured hangout session for two people on different internet
 
 If any of those answers are "no", we know what to slice next. If they are "yes", we know the vision is reachable and can start adding texture.
 
+## Build for this test
+
+The test build is `CampfireVR-remote-fika-test-v0.1.apk`, produced from `main` at the time of this doc.
+
+To rebuild from a fresh checkout:
+
+1. Open `UnityProject/` in Unity 6 with Android Build Support installed.
+2. Run **Tools → Quest Setup → Configure Project for Quest 3** once (idempotent — sets IL2CPP/ARM64/Vulkan/Oculus loader).
+3. Run **Tools → Quest Setup → Build Remote Fika APK**. The output lands at:
+   ```
+   UnityProject/Builds/CampfireVR-remote-fika-test-v0.1.apk
+   ```
+   `Builds/` is gitignored. The APK isn't checked in — each tester rebuilds from `main`.
+
+`Cmd+B` still works for ad-hoc builds; the menu just guarantees the right name and output path for this campaign.
+
 ## Before the session
 
 ### One-time install per device
 
-Each Quest needs the current build of `CampfireRoom.apk` installed.
+Each Quest needs `CampfireVR-remote-fika-test-v0.1.apk` installed.
 
-1. On the build machine: `Cmd+B` in Unity → produces `.apk`.
-2. Plug in Quest A via USB-C, `adb install -r path/to/CampfireRoom.apk`. Repeat for Quest B.
+1. Plug in Quest via USB-C, accept the trust dialog inside the headset.
+2. `adb install -r UnityProject/Builds/CampfireVR-remote-fika-test-v0.1.apk` from the repo root.
+3. Repeat for the second Quest.
 
-(Or `Build And Run` while the right Quest is plugged in.)
+The package id is `com.unitymcplab.campfireroom`. Earlier installs (when the product was named `CampfireRoom`) share the package id, so `adb install -r` upgrades cleanly. The on-headset app icon will still read **CampfireRoom** until we rename it — see "known rough edges" below.
 
 ### One-time on each Quest
 
 1. Developer mode on, USB debugging allowed (already done for our two devices).
-2. First launch: accept the **microphone permission** dialog when it appears. Without it, voice never goes anywhere.
+2. First launch: accept the **microphone permission** dialog when it appears. Without it, voice never goes anywhere — Photon Voice will silently produce no audio rather than retrying.
 
 ### Per-session setup (~5 min)
 
-1. Pick a host. Doesn't matter which; the experience is symmetric.
-2. Host opens the app first, presses **left Y** to switch to Relay, then **left X** to host. The big `CAMPFIRE CODE` appears. The state line should read `Waiting for friend…`.
-3. Host reads the code out loud over a phone call / Discord / SMS.
-4. Guest opens the app, presses **left Y** to switch to Relay, then **right B**. Quest's system keyboard pops up — type the 6 characters, press Done.
-5. State should walk `Enter the campfire code… → Connecting to ABCDEF… → Connected` and on the host's side `Friend joined the fire`.
-6. Within ~3 seconds, `Voice connected (ABCDEF)` should appear on both. Say *"can you hear me?"* — confirm voice both ways before continuing.
+The overlay drives one of five states (idle, hosting, joining, connecting, connected). Look at the world-space `🔥` panel in front of the campfire — it always tells you what to do.
 
-If voice doesn't come through within 5 seconds: left Y (Stop) on both sides, retry. If it still doesn't, fall back to a phone call for this session and capture the failure in the retro.
+1. **Pick a host.** Doesn't matter which; the experience is symmetric.
+2. **Host:** opens the app. Panel reads `🔥 CAMPFIRE` with the universal legend.
+   - If `mode · LAN` is shown at the bottom, press **left Y** to flip to Relay (the line should change to `mode · Relay`).
+   - Press **left X** to host. Panel switches to `🔥 YOUR FIRE`, then `Creating fire ...` (with cycling dots), then `Sharing code` and finally:
+     ```
+     🔥  YOUR FIRE
+     share code
+     A B C
+     waiting for friend ...
+     ```
+3. **Host reads the 3-letter code out loud** over a phone call / Discord / SMS. The alphabet is only A/B/C, so 27 possible codes — repeat once if you suspect a misheard letter.
+4. **Guest:** opens the app, makes sure the bottom line reads `mode · Relay` (press **left Y** to toggle if not), then **right B** to enter the code editor. Panel switches to `🔥 JOIN FIRE` with three slots, the first one bracketed: `[A] B C`.
+5. **Guest enters the code.** No keyboard — it's all controller input:
+   - **Right thumbstick** to change the current letter (right or up = next, left or down = prev). A short flick changes one letter; holding the stick auto-cycles after ~0.35s.
+   - **Right B** advances to the next slot (the brackets jump to the next position) and, on the third slot, becomes "join".
+   - **Left Y** goes back a slot, or cancels back to idle from slot 1.
+   - **A / X buttons** are silent fallbacks if a stick isn't responding — A = next letter, X = prev.
+6. **Guest presses B on the last slot to join.** Panel switches to `🔥 CAMPFIRE` with `Joining fire ...` (cycling dots). Within a few seconds:
+   - Guest sees a brief `🔥 Connected` notification, then the panel goes blank — the campfire is the focus.
+   - Host sees `🔥 Friend joined` for ~5 seconds, then blank.
+7. **Voice handshake.** Photon Voice usually catches up within ~3 seconds of the NGO connection. Say *"can you hear me?"* — confirm voice both ways before continuing.
+
+If voice doesn't come through within ~5 seconds: there's no in-app disconnect button yet — quit to the system menu and relaunch on both sides. If it still doesn't, fall back to a phone call for this session and capture the failure in the retro.
 
 ## Physical setup recommendations
 
@@ -70,7 +104,7 @@ Stop talking for 60 seconds on purpose. Both of you. Just listen to the fire. **
 Both wave with controllers. Point at each other. Point at the fire. **Notice**: do the hand cubes feel like *your* hands or like floating debris? Do they line up with where you think your real hands are?
 
 ### 6. Goodbye
-Decide to leave. Wave goodbye. One person presses **left Y** to disconnect, then the other. **Notice**: does the goodbye feel like leaving a place, or like ending a call?
+Decide to leave. Wave goodbye. There's no in-app disconnect button in this build — both of you press the **Meta button** to return to the Quest home, then close the app from the dock. **Notice**: does the goodbye feel like leaving a place, or like ending a call? Note: the lack of a graceful in-VR disconnect is on the rough-edges list.
 
 ## Recommended headset settings
 
@@ -122,17 +156,25 @@ Next slice we want
 - 
 ```
 
-## Likely weak spots to watch for
+## Known rough edges
 
-These are the parts of the prototype most likely to misbehave. If you notice any, write the symptom in the retro — the more specific, the better the next slice can target it.
+Things we already know about. Not blockers for this test — just heads-ups so you can shrug them off and stay in the experience.
 
+- **App icon still says "CampfireRoom".** The Unity `productName` hasn't been updated; the on-headset name predates the rebrand to CampfireVR. Functional only — same package id, same APK, just a stale label.
+- **`bundleVersion` is `1.0`, the APK file is `v0.1`.** The two are independent on Android. The file name is the test campaign tag; the on-device "version" you'd see in Quest's app info reads 1.0. Nothing to do during the session.
+- **No in-app version display.** You can't see which build you're running from inside VR. Confirm via `adb shell dumpsys package com.unitymcplab.campfireroom | grep versionName` if there's any doubt.
+- **No in-VR disconnect.** When you're done, press the Meta button and close from the dock. There's no "leave fire" button on the controller in this build.
+- **Y also toggles mode while connected.** If you accidentally press left Y mid-session it'll flip the mode label between Relay and LAN. It does *not* drop the existing connection — a follow-up slice will gate Y to idle-only.
+- **B/X also do something while hosting.** Pressing them while you're already hosting will try to start another action (B → enter code editor, X → re-attempt host). Mostly harmless but can produce confusing notifications. Just don't press them after the code is shared.
+- **27 possible codes.** ABC × 3 slots = only 27 combinations. Two simultaneous sessions could in theory collide on the same alias. For one paired session this is fine; we'll widen the alphabet when we have more concurrent users.
+- **Emoji in the panel may render as `?` on Quest.** TextMesh uses the legacy Arial font, which sometimes lacks `🔥`. If the panels show boxes/question marks where fires should be, the rest of the UX still works — note it in the retro.
 - **Voice cuts out for 2–5 sec** — Photon Relay region hop or WiFi blip. Should recover automatically. Note the timestamp.
 - **Hand cubes float to weird positions** — happens when a controller lost tracking. Bring the controller back into view.
-- **Other person's head sphere drifts away from the seat** — has happened in earlier slices; should be fixed now that head/hands are sent in seat-relative coordinates. If it recurs, we need to know.
+- **Other person's head sphere drifts away from the seat** — should be fixed now that head/hands are sent in seat-relative coordinates. If it recurs, we need to know.
 - **Fire crackle too loud / too quiet** — currently `volume = 0.3`. Note your preference; we can dial it.
 - **You hear your own voice as an echo** — means the other Quest's speakers are feeding back into its mic. Use headphones.
-- **Quest system menu pops up mid-session** — the Meta button accidentally pressed pauses the app. Photon and NGO usually survive a brief pause; if not, left Y to disconnect and rejoin.
-- **One side says `Voice: Disconnected`** mid-session — Photon Cloud connection dropped. Currently no auto-reconnect; left Y on both sides and rejoin via the same code.
+- **Quest system menu pops up mid-session** — the Meta button accidentally pressed pauses the app. Photon and NGO usually survive a brief pause; if not, both quit and relaunch.
+- **One side says voice/network has dropped** mid-session — Photon Cloud connection dropped. Currently no auto-reconnect; both quit, relaunch, redo the host/join flow with a fresh code.
 
 ## What this test will *not* validate
 
