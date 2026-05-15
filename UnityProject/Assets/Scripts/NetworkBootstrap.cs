@@ -15,11 +15,17 @@ public class NetworkBootstrap : MonoBehaviour
     [SerializeField] private ushort port = 7777;
     [SerializeField] private Mode mode = Mode.Lan;
 
+    public Mode CurrentMode => mode;
+    public string CurrentState => _state;
+    public string LastButton => _lastButton;
+
     private const string LanRoomName = "lan-campfire";
 
     private string _joinCodeInput = "";
     private string _state = "Idle";
+    private string _lastButton = "";
     private bool _prevLPrimary, _prevLSecondary, _prevRPrimary, _prevRSecondary;
+    private bool _loggedLeftInvalid, _loggedRightInvalid;
     private ServicesBootstrap _services;
     private VoiceBootstrap _voiceBootstrap;
     private bool _busy;
@@ -102,11 +108,37 @@ public class NetworkBootstrap : MonoBehaviour
     void PollController(XRNode node, ref bool prevP, ref bool prevS, System.Action onPrimary, System.Action onSecondary)
     {
         var dev = InputDevices.GetDeviceAtXRNode(node);
-        if (!dev.isValid) return;
+        ref bool loggedInvalid = ref (node == XRNode.LeftHand ? ref _loggedLeftInvalid : ref _loggedRightInvalid);
+
+        if (!dev.isValid)
+        {
+            if (!loggedInvalid)
+            {
+                Debug.Log($"[Ctrl] {node} device not valid yet (controller off or not paired)");
+                loggedInvalid = true;
+            }
+            return;
+        }
+        if (loggedInvalid)
+        {
+            Debug.Log($"[Ctrl] {node} device valid: {dev.name} / {dev.manufacturer} / {dev.characteristics}");
+            loggedInvalid = false;
+        }
+
         dev.TryGetFeatureValue(CommonUsages.primaryButton, out bool p);
         dev.TryGetFeatureValue(CommonUsages.secondaryButton, out bool s);
-        if (p && !prevP) onPrimary?.Invoke();
-        if (s && !prevS) onSecondary?.Invoke();
+        if (p && !prevP)
+        {
+            _lastButton = $"{node} primary";
+            Debug.Log($"[Ctrl] {node} primary pressed");
+            onPrimary?.Invoke();
+        }
+        if (s && !prevS)
+        {
+            _lastButton = $"{node} secondary";
+            Debug.Log($"[Ctrl] {node} secondary pressed");
+            onSecondary?.Invoke();
+        }
         prevP = p; prevS = s;
     }
 
