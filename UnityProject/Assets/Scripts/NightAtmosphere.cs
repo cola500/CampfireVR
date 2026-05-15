@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 public class NightAtmosphere : MonoBehaviour
 {
     [SerializeField] private Color ambientColor = new Color(0.03f, 0.04f, 0.08f, 1f);
-    [SerializeField] private bool clearSkybox = true;
+    [SerializeField] private Material skybox;
 
     void OnEnable()
     {
@@ -21,6 +21,6 @@ public class NightAtmosphere : MonoBehaviour
     {
         RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = ambientColor;
-        if (clearSkybox) RenderSettings.skybox = null;
+        RenderSettings.skybox = skybox; // null = camera SolidColor background takes over
     }
 }

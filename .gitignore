@@ -13,6 +13,12 @@ UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/iOS/
 UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/iOS.meta
 UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/VisionOS/
 UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/VisionOS.meta
+
+# Real Stars Skybox Lite (Unity Asset Store — EULA forbids redistributing source).
+# Anyone cloning this repo imports the same package from their own My Assets;
+# the scene references the material by GUID and resolves once imported.
+UnityProject/Assets/Real Stars Skybox/
+UnityProject/Assets/Real Stars Skybox.meta
 UnityProject/[Oo]bj/
 UnityProject/[Bb]uild/
 UnityProject/[Bb]uilds/

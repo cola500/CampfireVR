@@ -132,6 +132,7 @@ public static class NetworkSetup
     }
 
     private const string CampfireCrackleClipPath = "Assets/audio/campfire_crackle.wav";
+    private const string StarSkyboxMaterialPath = "Assets/Real Stars Skybox/StarSkybox04/StarSkybox04.mat";
 
     [MenuItem("Tools/Ambience Setup/Create FireCrackleAudio")]
     public static void CreateFireCrackleAudio()
@@ -172,5 +173,30 @@ public static class NetworkSetup
         EditorSceneManager.SaveOpenScenes();
 
         Debug.Log("[NetworkSetup] FireCrackleAudio created/configured under Flame.");
+    }
+
+    [MenuItem("Tools/Ambience Setup/Wire Starfield Skybox")]
+    public static void WireStarfieldSkybox()
+    {
+        var atmosphere = Object.FindFirstObjectByType<NightAtmosphere>();
+        if (atmosphere == null) { Debug.LogError("[NetworkSetup] No NightAtmosphere in scene"); return; }
+
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(StarSkyboxMaterialPath);
+        if (mat == null)
+        {
+            Debug.LogError($"[NetworkSetup] {StarSkyboxMaterialPath} not found. Re-import 'Real Stars Skybox Lite' from My Assets.");
+            return;
+        }
+
+        var so = new SerializedObject(atmosphere);
+        var prop = so.FindProperty("skybox");
+        if (prop == null) { Debug.LogError("[NetworkSetup] NightAtmosphere has no 'skybox' field"); return; }
+        prop.objectReferenceValue = mat;
+        so.ApplyModifiedProperties();
+
+        EditorUtility.SetDirty(atmosphere);
+        EditorSceneManager.SaveOpenScenes();
+
+        Debug.Log($"[NetworkSetup] NightAtmosphere.skybox set to {StarSkyboxMaterialPath}");
     }
 }
