@@ -1,4 +1,4 @@
-using Photon.Realtime;
+using Photon.Pun;
 using Photon.Voice.Unity;
 using UnityEngine;
 
@@ -11,20 +11,24 @@ public class VoiceBootstrap : MonoBehaviour
     void Start()
     {
         _voice = GetComponent<VoiceConnection>();
-        if (_voice.Client != null) _voice.Client.StateChanged += OnClientStateChanged;
+
+        // VoiceConnection.ConnectUsingSettings reads from its own .Settings field,
+        // not from PhotonServerSettings. Copy the AppSettings the user pasted into
+        // the PUN wizard so a single source of config keeps working.
+        if (PhotonNetwork.PhotonServerSettings != null &&
+            PhotonNetwork.PhotonServerSettings.AppSettings != null)
+        {
+            _voice.Settings = PhotonNetwork.PhotonServerSettings.AppSettings;
+        }
+
         _voice.ConnectUsingSettings();
         _status = "Voice: connecting…";
     }
 
-    void OnDestroy()
+    void Update()
     {
         if (_voice != null && _voice.Client != null)
-            _voice.Client.StateChanged -= OnClientStateChanged;
-    }
-
-    private void OnClientStateChanged(ClientState from, ClientState to)
-    {
-        _status = $"Voice: {to}";
+            _status = $"Voice: {_voice.Client.State}";
     }
 
     void OnGUI()
