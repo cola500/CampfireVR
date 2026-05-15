@@ -23,4 +23,13 @@ public class NightAtmosphere : MonoBehaviour
         RenderSettings.ambientLight = ambientColor;
         RenderSettings.skybox = skybox; // null = camera SolidColor background takes over
     }
+
+    void Start()
+    {
+        var live = RenderSettings.skybox;
+        Debug.Log(
+            $"[NightAtmosphere] field skybox={(skybox != null ? skybox.name : "null")}  " +
+            $"RenderSettings.skybox={(live != null ? live.name : "null")}  " +
+            $"Camera.main.clearFlags={(Camera.main != null ? Camera.main.clearFlags.ToString() : "no main camera")}");
+    }
 }
