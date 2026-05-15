@@ -4,6 +4,15 @@ UnityProject/[Tt]emp/
 UnityProject/\.utmp/
 UnityProject/Assets/Resources/PerformanceTest*.json
 UnityProject/Assets/Resources/PerformanceTest*.json.meta
+
+# Photon: keep core libs and scripts but drop demos/docs and unused platforms (we only ship Android/macOS).
+UnityProject/Assets/Photon/*/Demos/
+UnityProject/Assets/Photon/*/Demos.meta
+UnityProject/Assets/Photon/PhotonVoice-Documentation.*
+UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/iOS/
+UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/iOS.meta
+UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/VisionOS/
+UnityProject/Assets/Photon/PhotonVoice/PhotonVoiceLibs/VisionOS.meta
 UnityProject/[Oo]bj/
 UnityProject/[Bb]uild/
 UnityProject/[Bb]uilds/

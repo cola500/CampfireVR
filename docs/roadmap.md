@@ -27,8 +27,8 @@ Each item below is a single slice — one commit, one observable change.
 
 Chosen direction: **Photon Voice 2 (free tier)**. Full rationale and alternatives considered in [voice-research.md](voice-research.md). Tiny slices in order:
 
-- **Voice A — Quest microphone capture probe.** No packages. Local `Microphone.Start`, OnGUI level meter. Verifies Android `RECORD_AUDIO` permission and Quest mic gain.
-- **Voice B — Photon Voice bootstrap.** Add Photon Voice 2 package + AppId asset. Connect to Photon Cloud independently of NGO/Relay. Status overlay only.
+- ✓ **Voice A — Quest microphone capture probe.** `MicrophoneTest.cs` reads RMS, renders OnGUI level bar. `RECORD_AUDIO` permission, mic gain, sample window all verified.
+- ✓ **Voice B — Photon Voice bootstrap.** Photon Voice 2 imported from Asset Store. `VoiceBootstrap.cs` calls `VoiceConnection.ConnectUsingSettings()` and surfaces the `Client.StateChanged` cycle as `Voice: …` in the overlay. AppId lives in `PhotonServerSettings.asset` only.
 - **Voice C — Mono voice between two Quests.** `Recorder` local + `Speaker` on remote `PlayerHead`. "Hello from Stockholm" moment.
 - **Voice D — Spatial voice.** `Speaker.AudioSource.spatialBlend = 1` so the voice comes from the right side of the fire.
 - **Voice E — Cozy polish.** Distance falloff, noise suppression, optional speech-bobbing affordance.

@@ -101,11 +101,13 @@ Dissonance is a close second and is the cleaner architectural fit (voice over ou
 - No networking, no packages. Just `Microphone.devices`, `Microphone.Start`, plug clip into an `AudioSource`, render an OnGUI level meter.
 - Goal: confirm Android permission works, mic is reachable from Unity on Quest, gain is reasonable.
 
-### Slice B — Photon Voice bootstrap + connect
-- Add Photon Voice 2 package and AppId asset.
-- `VoiceBootstrap.cs` connects to Photon Cloud (separate from NGO/Relay).
-- OnGUI shows "Voice: connected / region / players".
-- No `Speaker` yet — just verify the voice cloud accepts us.
+### Slice B — Photon Voice bootstrap + connect  ✓ done
+
+- Photon Voice 2 imported via Unity Asset Store (UPM scoped registry was probed and the URL `packages.photonengine.com` did not respond — Photon does not publish Voice 2 over UPM yet). PUN 2 came along as a dependency; we ignore it.
+- `App Id Voice` field of `Assets/Photon/PhotonUnityNetworking/Resources/PhotonServerSettings.asset` is the canonical config.
+- `VoiceBootstrap.cs` on the `NetworkBootstrap` GameObject: `[RequireComponent(typeof(VoiceConnection))]`, calls `ConnectUsingSettings()` in `Start`, subscribes to `Client.StateChanged`, prints `Voice: {state}` via OnGUI.
+- Verified states observed: `PeerCreated → ConnectingToNameServer → ConnectedToNameServer → ConnectingToMasterServer → ConnectedToMasterServer → JoinedLobby`.
+- No Recorder, no Speaker, no room join. Just connectivity.
 
 ### Slice C — Mono voice between two Quests
 - Local Quest gets a `Recorder` driving Photon Voice from `Microphone.devices[0]`.

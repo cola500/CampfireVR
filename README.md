@@ -121,6 +121,8 @@ In the Editor, the same actions are bound to **M** / **H** / **C** / **X**; an e
 
 Unity Dashboard prerequisites: Authentication and Relay services must be Active for the project's `cloudProjectId`. Anonymous sign-in is automatic; no UI.
 
+**Voice infrastructure (no playback yet):** Photon Voice 2 is imported under `Assets/Photon/`. `VoiceBootstrap` connects to Photon Cloud at startup; the overlay shows `Voice: <state>` (expect `JoinedLobby` once settled). The `App Id Voice` field on `PhotonServerSettings.asset` is the only config; see [docs/voice-research.md](docs/voice-research.md) for the full plan. No Recorder, Speaker, or room join yet — slice C onward.
+
 When it works: the static `PlayerSlot_B` placeholder disappears and the remote player's head appears anchored at the `RemoteRig` (mirror of `VRRig` across the fire), facing the campfire. The owner's head pose is broadcast in seat-relative coordinates so the remote always sits at their seat regardless of where the owner physically is. **Two small cubes** also appear at the remote's hand positions, driven by NGO `NetworkVariable<Vector3>` / `NetworkVariable<Quaternion>` pairs — same seat-relative transform applied to `LeftHandAnchor` / `RightHandAnchor`. On disconnect, `PlayerSlot_B` returns. No finger tracking, no IK, no voice.
 
 ## MCP workflow
