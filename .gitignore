@@ -136,3 +136,4 @@ node_modules/
 
 # MCP server config (contains absolute path + per-machine package hash; use .mcp.example.json)
 .mcp.json
+.mcp.json.bak
