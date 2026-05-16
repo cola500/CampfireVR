@@ -120,7 +120,7 @@ public class TutorialOverlay : MonoBehaviour
             case NetworkBootstrap.Phase.Idle:
             default:
             {
-                string modeLine = $"mode · {_net.CurrentMode}";
+                string modeLine = $"mode · {_net.CurrentModeLabel}";
                 text.text =
                     "🔥  CAMPFIRE\n" +
                     "\n" +

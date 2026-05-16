@@ -19,6 +19,7 @@ public class NetworkBootstrap : MonoBehaviour
     [SerializeField] private Mode mode = Mode.Lan;
 
     public Mode CurrentMode => mode;
+    public string CurrentModeLabel => mode == Mode.Relay ? "Internet" : "Same Wi-Fi";
     public string CurrentState => _state;
     public string LastButton => _lastButton;
     public string LastAction => _lastAction;
@@ -307,7 +308,7 @@ public class NetworkBootstrap : MonoBehaviour
     void ToggleMode()
     {
         mode = (mode == Mode.Lan) ? Mode.Relay : Mode.Lan;
-        _state = $"Mode · {mode}";
+        _state = $"Mode · {CurrentModeLabel}";
     }
 
     void Recenter()

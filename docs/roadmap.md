@@ -31,9 +31,7 @@ Chosen direction: **Photon Voice 2 (free tier)**. Full rationale and alternative
 - ✓ **Voice B — Photon Voice bootstrap.** Photon Voice 2 imported from Asset Store. `VoiceBootstrap.cs` calls `VoiceConnection.ConnectUsingSettings()` and surfaces the `Client.StateChanged` cycle as `Voice: …` in the overlay. AppId lives in `PhotonServerSettings.asset` only.
 - ✓ **Voice C — Minimal remote voice.** `Recorder` on `NetworkBootstrap`, `VoiceSpeaker.prefab` (non-spatial `AudioSource` + `Speaker`) auto-instantiated by `VoiceConnection.SpeakerPrefab`. `VoiceBootstrap.JoinRoom/LeaveRoom` ties Photon room name to NGO Relay code (or `lan-campfire`), so voice membership tracks campfire membership without extra UI.
 - ✓ **Voice D — Spatial campfire voice.** `VoiceSpeaker.prefab` re-baked with `spatialBlend = 1`, linear rolloff 0.5–10 m, Doppler off. `VoiceSpeakerPlacer` reparents the spawned Speaker under `RemoteRig` at eye height on `OnEnable`, so the remote voice comes from across the fire.
-- **Voice C — Mono voice between two Quests.** `Recorder` local + `Speaker` on remote `PlayerHead`. "Hello from Stockholm" moment.
-- **Voice D — Spatial voice.** `Speaker.AudioSource.spatialBlend = 1` so the voice comes from the right side of the fire.
-- **Voice E — Cozy polish.** Distance falloff, noise suppression, optional speech-bobbing affordance.
+- **Voice E — Cozy polish.** Noise suppression, optional speech-bobbing affordance. (Distance falloff already shipped as part of Voice D.)
 
 Risks to revisit each slice: parallel sessions on Quest, mic-permission timing, echo when testing in the same room, AppId hygiene. Full list in [voice-research.md](voice-research.md#risks-and-open-questions).
 

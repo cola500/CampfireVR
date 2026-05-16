@@ -91,34 +91,38 @@ The APK installs and launches automatically. Falling back to flat-screen Editor 
 
 ## Multiplayer testing
 
-Scene has `NetworkManager` (NGO + UnityTransport), `NetworkBootstrap`, and `ServicesBootstrap`. The bootstrap supports two modes:
+Scene has `NetworkManager` (NGO + UnityTransport), `NetworkBootstrap`, and `ServicesBootstrap`. The bootstrap supports two modes (the visible labels in the world-space tutorial are user-friendly; the C# enum values in brackets are the internal names):
 
-| Mode | Use | How to start |
-|---|---|---|
-| **LAN** | same Wi-Fi / same machine | direct IP — set `serverAddress` in the scene before building |
-| **Relay** | two devices on different internet connections | Unity Relay free tier; short join code shared out of band |
+| Visible label | Internal | Use | How to start |
+|---|---|---|---|
+| **Internet** | `Relay` | two devices on different internet connections | Unity Relay free tier; 3-character ABC code shared out of band |
+| **Same Wi-Fi** | `Lan` | same Wi-Fi / same machine | direct IP — set `serverAddress` in the scene before building (effectively dev-only today; no runtime IP entry, no LAN discovery) |
 
-Toggle with **M** in the Editor (the on-screen `Mode:` label flips). Default is **LAN**.
+Default is **Same Wi-Fi** (`Mode.Lan` in the scene's serialized field). Toggle with **left Y** on Quest or **M** in the Editor.
 
 | Action | Quest | Editor (Mac) |
 |---|---|---|
 | Host session | left controller **X** | **H** |
 | Join session | right controller **B** | **C** |
-| Switch LAN ↔ Relay | left controller **Y** | **M** |
+| Switch mode | left controller **Y** | **M** |
 | Recenter seat/view | right controller **A** | — |
 | Stop / disconnect | take headset off or quit via Meta button | **X** |
 
-**LAN flow:** read the host's IP from its overlay, set that as `serverAddress` on the client build, rebuild, deploy.
+There is currently **no Quest button bound to `Stop()`** — to leave a session in headset, press the Meta button and quit the app. The editor `X` key is the only `Stop()` trigger. Tracked in `docs/app-alignment-qa.md` as a recommended follow-up slice.
 
-**Relay flow:**
+**Same Wi-Fi (LAN) flow:** the host's IP is shown in the editor-only overlay (`Local IPs: …`). Read it from the editor or via `adb shell ip addr`, set it as `serverAddress` on the client build's `NetworkBootstrap` component, rebuild, deploy. Not viable for a vanilla user — gated behind a scene edit.
 
-1. On host (Quest): press **left X** to switch to Relay. Press **right A** to host. The overlay shows a large cozy `CAMPFIRE CODE` with the 6 characters spaced apart and a gentle warm pulse. State line below reads `Waiting for friend…`.
-2. Share the 6-character code out of band (SMS, Discord) to the remote person.
-3. On client (Quest): press **left X** to switch to Relay. Press **right B** to join. With no code entered yet, this opens Quest's system keyboard with the prompt "Campfire code"; type the 6 characters and confirm. The state line walks `Enter the campfire code… → Connecting to ABCDEF… → Connected`.
-4. On the host, the state flips to `Friend joined the fire`. Head, hands, and presence breathing sync over Relay exactly as on LAN.
-5. **Stop**: press **left Y** on either side. Disconnects gracefully and clears the entered code.
+**Internet (Relay) flow:**
 
-In the Editor, the same actions are bound to **M** / **H** / **C** / **X**; an extra "Join code (editor):" text field is shown so you can type without the system keyboard.
+1. On host (Quest): if the panel's bottom line reads `mode · Same Wi-Fi`, press **left Y** to flip to `mode · Internet`. Then press **left X** to host. The world-space panel switches to `🔥 YOUR FIRE` and walks `Creating fire ... → Sharing code → waiting for friend ...`. The 3-character ABC code appears in the middle of the panel, spaced apart (e.g. `A B C`).
+2. Share the 3-character code out of band (SMS, Discord) to the remote person.
+3. On client (Quest): make sure the bottom line reads `mode · Internet` (press **left Y** to toggle if not), then press **right B** to enter the code editor. The panel switches to `🔥 JOIN FIRE` with three slots, the first one bracketed: `[A] B C`. Cycle the current letter with the **right thumbstick** (a short flick changes one letter; hold to auto-cycle); A / X buttons work as silent fallbacks. **Right B** advances to the next slot and, on the third slot, becomes "join". **Left Y** goes back a slot, or cancels back to idle from slot 1.
+4. After B on the last slot, state walks `Looking for fire ... → Joining fire ... → Connected` and the host sees a brief `🔥 Friend joined` notification before the panel fades to blank. Head, hands, and presence breathing sync over Relay.
+5. **Stop:** no in-VR button. Quit the app from the Meta system menu.
+
+The 3-character ABC code = 27 possible combinations. Acceptable for one paired test session; collision risk noted in `docs/remote-fika-test.md`.
+
+In the Editor, the same actions are bound to **M** / **H** / **C** / **X**; an extra "Join code (editor):" text field is shown so you can type without the world-space picker.
 
 Unity Dashboard prerequisites: Authentication and Relay services must be Active for the project's `cloudProjectId`. Anonymous sign-in is automatic; no UI.
 
@@ -149,12 +153,7 @@ The whole project was authored through Claude Code calling `mcp__mcp-unity__*` t
 
 ## Next slices
 
-In rough order, each tiny enough to ship in one commit. Full list in [docs/roadmap.md](docs/roadmap.md):
-
-1. Place the first remote `PlayerHead` at `PlayerSlot_B`'s position and hide the static placeholder when a remote peer connects.
-2. Sync the hand anchors over the network too (same pattern as the head).
-3. Voice chat (Vivox or peer-to-peer alternative).
-4. Cozy polish — bloom on the flame, ambient crackle audio, dimmer global ambient.
+See [docs/roadmap.md](docs/roadmap.md) for the live list of done / next / deferred slices. Most items listed in earlier README revisions of this section (remote head/hand sync, voice chat, ambient crackle, cozy polish) have since shipped — see the `## Done` section of the roadmap. Current focus per `docs/app-alignment-qa.md`: in-VR disconnect binding and a copy pass on the per-phase legend.
 
 ## License
 

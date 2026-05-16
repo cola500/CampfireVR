@@ -145,6 +145,8 @@ public class VoiceBootstrap : MonoBehaviour
 
     void OnGUI()
     {
+        if (!Application.isEditor) return;
+
         GUI.Label(new Rect(20, 380, 800, 28), _status);
     }
 }
