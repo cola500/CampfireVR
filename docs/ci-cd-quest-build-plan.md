@@ -22,7 +22,7 @@ Total: 4–7 minutes wall-clock for a warm rebuild + deploy. Johan does this eve
 | Build target: Android, ARM64, IL2CPP, OpenXR/Oculus loader, `AndroidMinSdkVersion 29` | `ProjectSettings.asset` | IL2CPP requires base OS matching target arch — Android IL2CPP works fine on Ubuntu runners. |
 | `activeInputHandler = 0` (Input Manager / legacy) | `ProjectSettings.asset:797` | Already correct in-repo. `QuestBuildAPK.ForceLegacyInputHandling()` re-asserts before each build for safety. |
 | Application ID: `com.unitymcplab.campfireroom` | `ProjectSettings.asset:169` | Stable, no per-build mutation needed. |
-| Repo visibility: **PUBLIC** at `github.com/cola500/unity-mcp-lab` | `gh repo view` | Eligible for free GitHub Actions minutes (3,000 / month public). Secrets still encrypted — public visibility doesn't expose them. |
+| Repo visibility: **PUBLIC** at `github.com/cola500/CampfireVR` | `gh repo view` | Eligible for free GitHub Actions minutes (3,000 / month public). Secrets still encrypted — public visibility doesn't expose them. |
 | Active scene in build: only `Assets/Scenes/CampfireRoom.unity` | `EditorBuildSettings.asset` | One scene to validate; small surface. |
 | One git package dependency: `com.gamelovers.mcp-unity` from public GitHub URL | `Packages/manifest.json` | CI can fetch without auth. |
 | Local Unity install present | `/Applications/Unity/Hub/Editor/6000.4.7f1/` | Local-build option is immediately viable. |

@@ -80,7 +80,7 @@ The APK is `CampfireVR-remote-fika-test-v0.1.apk` (about 86 MB). It's not on the
 Ways to get the file:
 
 - **Direct from Johan** — AirDrop, Discord, email, USB stick. Easiest.
-- **From the repo, if you have the build tools** — clone <https://github.com/cola500/unity-mcp-lab>, install Unity 6.4 (`6000.4.7f1`), then `./scripts/build-quest.sh` to produce the APK locally. About 5 minutes of build time. Only do this if you actually want to make changes.
+- **From the repo, if you have the build tools** — clone <https://github.com/cola500/CampfireVR>, install Unity 6.4 (`6000.4.7f1`), then `./scripts/build-quest.sh` to produce the APK locally. About 5 minutes of build time. Only do this if you actually want to make changes.
 
 The APK is the same regardless of source — same package ID (`com.unitymcplab.campfireroom`), same version (1.0). Reinstalling over an existing install with `-r` just upgrades cleanly.
 
@@ -91,7 +91,7 @@ Pick the method that matches the tool you set up in Part B.
 ### Method 1 — Script (if you cloned the repo)
 
 ```sh
-cd unity-mcp-lab
+cd CampfireVR
 ./scripts/build-quest.sh --install-only --launch
 ```
 
@@ -181,7 +181,7 @@ To **recenter your seat** if the view feels off after putting the headset on: pr
 
 ## More info
 
-- Project README: <https://github.com/cola500/unity-mcp-lab/blob/main/README.md>
+- Project README: <https://github.com/cola500/CampfireVR/blob/main/README.md>
 - **What changed since the last build you tested**: [CHANGELOG.md](../CHANGELOG.md) — please mention which version you ran when you report something back. The APK filename + the `app_started` entry in your debug log together identify the build.
 - Full session protocol (the 20-minute "Remote Fika" structured hangout): [docs/remote-fika-test.md](remote-fika-test.md)
 - Single-letter room flow visual verification: [docs/verification/join-flow.md](verification/join-flow.md)
