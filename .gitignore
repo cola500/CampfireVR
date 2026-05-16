@@ -52,6 +52,16 @@ UnityProject/Assets/Mountain Terrain rocks and tree.meta
 UnityProject/Assets/Terra/
 UnityProject/Assets/Terra.meta
 
+# ithappy — Animals_FREE (Unity Asset Store — same EULA).
+# Low-poly animal pack imported via Package Manager → My Assets. Not yet
+# placed in the campfire scene; reserved for a future ambience slice.
+# Re-importable from My Assets on clone. The com.unity.postprocessing
+# package it pulls in (3.5.4) IS committed via Packages/manifest.json so
+# builds resolve the transitive dependency even before the source folder
+# is re-imported.
+UnityProject/Assets/ithappy/
+UnityProject/Assets/ithappy.meta
+
 # XR Interaction Toolkit Samples (re-importable via Package Manager — UPM samples).
 # Apply Hand Visuals auto-runs Sample.Import() on first use; the imported tree
 # is regenerable, so we keep the 10 MB of demo scenes / textures / shaders out
