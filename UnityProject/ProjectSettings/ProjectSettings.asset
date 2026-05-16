@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: unity-mcp-lab
+  companyName: CampfireVR
   productName: CampfireVR
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -800,7 +800,7 @@ PlayerSettings:
   cloudProjectId: 9afc913c-c0cc-42af-a476-25f5558750a4
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: CampfireRoom
+  projectName: CampfireVR
   organizationId: johan_unity930
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0

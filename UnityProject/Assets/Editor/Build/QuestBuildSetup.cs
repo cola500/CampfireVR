@@ -30,8 +30,12 @@ public static class QuestBuildSetup
             GraphicsDeviceType.Vulkan,
             GraphicsDeviceType.OpenGLES3,
         });
-        PlayerSettings.companyName = "unity-mcp-lab";
-        PlayerSettings.productName = "CampfireRoom";
+        // Canonical product naming. The Android package identifier is
+        // intentionally NOT renamed — it's part of every installed APK's
+        // upgrade chain, and changing it would force every friend to
+        // uninstall before next install. See docs/project-rename-notes.md.
+        PlayerSettings.companyName = "CampfireVR";
+        PlayerSettings.productName = "CampfireVR";
         PlayerSettings.SetApplicationIdentifier(ng, "com.unitymcplab.campfireroom");
 
         const string scenePath = "Assets/Scenes/CampfireRoom.unity";

@@ -1,6 +1,8 @@
-# unity-mcp-lab
+# CampfireVR
 
 A cozy social VR experiment for Meta Quest 3, built entirely as thin vertical slices through Claude Code driving the Unity Editor over MCP.
+
+> The git repo + folder are still called `unity-mcp-lab` for historical reasons (that's where the MCP integration work started). The product, app, and most paths have rebranded to `CampfireVR`. See [docs/project-rename-notes.md](docs/project-rename-notes.md) for the optional repo-rename steps.
 
 ## Vision
 

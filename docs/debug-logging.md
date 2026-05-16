@@ -86,8 +86,10 @@ On the headset:
 In the Editor (Mac):
 
 ```
-~/Library/Application Support/unity-mcp-lab/CampfireVR/debug-logs/
+~/Library/Application Support/CampfireVR/CampfireVR/debug-logs/
 ```
+
+(Path is derived from `PlayerSettings.companyName` / `productName`, both of which are now `CampfireVR`. If you have older Editor logs at `~/Library/Application Support/unity-mcp-lab/CampfireVR/debug-logs/` from before the rename, they're still valid and can be hand-merged or read in place.)
 
 Filename format: `campfirevr-log-YYYYMMDD-HHMMSS.jsonl` (one file per app launch, timestamp = first start). Each file rotates at **5 MB**; the **10 most-recent** files are kept and older ones are deleted automatically — no manual cleanup needed.
 
