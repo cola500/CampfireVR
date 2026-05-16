@@ -60,6 +60,15 @@ UnityProject/Assets/Mountain Terrain rocks and tree.meta
 UnityProject/Assets/Terra/
 UnityProject/Assets/Terra.meta
 
+# ALP "Big Oak Tree FREE" + "GrassFlowersFREE" (Unity Asset Store — same EULA).
+# Oak pack provides the OakBigTree01_pr prefab (5-LOD + billboard) used as
+# the campfire-clearing centerpiece; flower pack ships textures only (terrain-
+# detail oriented). docs/oak-and-flowers-slice.md uses one flower texture for
+# our MeadowFlower.mat cross-quads. Source not committed; re-importable from
+# My Assets on fresh clone.
+UnityProject/Assets/ALP_Assets/
+UnityProject/Assets/ALP_Assets.meta
+
 # ithappy — Animals_FREE (Unity Asset Store — same EULA).
 # Low-poly animal pack imported via Package Manager → My Assets. Not yet
 # placed in the campfire scene; reserved for a future ambience slice.
