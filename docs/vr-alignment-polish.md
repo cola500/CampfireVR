@@ -22,15 +22,38 @@
 
 The `+45°` X pitch is an initial empirical value matching the rough Quest Touch grip-to-pointer offset (typically 40–60°). It tips the mesh forward so the controller body angles down from the tracked pointer direction, looking more like a real held Touch controller. It will likely need a tuning pass after a second headset session — see "What still needs headset validation".
 
-### 2. Stone grounding — uniform Y embed
+### 2. Stone grounding — varied deterministic Y embed
 
-A new Editor helper, `[MenuItem("Tools/Quest Setup/Ground Stones")]` (added in `Assets/Editor/QuestBuildAPK.cs`), walks the active scene's root GameObjects, picks those whose name starts with `rock_set_` or `StoneSeat_`, and lowers each one's world Y by **0.08 m** (8 cm). Already-embedded stones (Y ≤ -0.05) are skipped — re-runs are no-ops.
+A new Editor helper, `[MenuItem("Tools/Quest Setup/Ground Stones")]` (added in `Assets/Editor/QuestBuildAPK.cs`), walks the active scene's root GameObjects, picks those whose name starts with `rock_set_` or `StoneSeat_`, and sets each one's world Y to a target value derived deterministically from the GameObject name.
 
-Result of running the helper once:
+The target embed depth varies by stone category so the row of rocks doesn't read as "extruded with a single tool":
+
+| Stone group | Embed range | Notes |
+|---|---|---|
+| `StoneSeat_*` (seats) | **0.05–0.08 m** | shallower so the top stays ≈ 0.42 m above ground at the default 0.4 scale — still tall enough to sit on |
+| `rock_set_*` (kerb + perimeter) | **0.06–0.12 m** | wider range, lets decorative rocks vary visually |
+
+Depth per stone = `lerp(min, max, fraction)` where `fraction` is a custom stable hash of the GameObject's name mapped into `[0, 1)`. The hash is rolled by hand rather than using `string.GetHashCode()` so the same name produces the same depth across machines and .NET runtime versions — a stone keeps the same embed across runs.
+
+**Re-runnable / idempotent.** The target Y is a pure function of the name, so a second run produces the same Y. Stones already within 5 mm of their target Y are skipped.
+
+Result of running the helper once on the varied-depth pass:
 
 ```
-[QuestBuildAPK] Grounded 17 stone(s) by 0.08 m; skipped 0 already-embedded.
+[QuestBuildAPK] Grounded 15 stone(s) with varied embed
+  (seats 0.05–0.08 m, rocks 0.06–0.12 m); skipped 2 already at target.
 ```
+
+(15 of 17 stones moved; the 2 skipped happened to land within 5 mm of their varied target after the previous uniform 0.08 m pass.)
+
+Sampled positions after the varied pass:
+
+| Object | Y target | Notes |
+|---|---|---|
+| `StoneSeat_A` | -0.070 | within seat range |
+| `StoneSeat_B` | -0.070 | within seat range |
+| `rock_set_01` (kerb) | -0.102 | within rock range |
+| `rock_set_02` (perimeter) | -0.102 | within rock range |
 
 The 17 stones cover:
 
@@ -57,10 +80,10 @@ The functional `Seat_A` / `Seat_B` roots are **not** moved — only the visual `
 |---|---|
 | `LeftHandMesh` (child of `LeftHandAnchor` under `VRRig/CameraOffset`) | `localEulerAngles.x: 0 → 45` |
 | `RightHandMesh` (child of `RightHandAnchor`) | `localEulerAngles.x: 0 → 45` |
-| `StoneSeat_A` (root) | `position.y: 0 → -0.08` |
-| `StoneSeat_B` (root) | `position.y: 0 → -0.08` |
-| `rock_set_01..04` (roots, fire-pit kerb) | `position.y: 0 → -0.08` each |
-| 11 perimeter `rock_set_*` (roots) | `position.y: 0 → -0.08` each |
+| `StoneSeat_A` (root) | `position.y: 0 → -0.070` (varied within 0.05–0.08) |
+| `StoneSeat_B` (root) | `position.y: 0 → -0.070` (varied within 0.05–0.08) |
+| `rock_set_01..04` (roots, fire-pit kerb) | `position.y: 0 → varied within -0.06 to -0.12` |
+| 11 perimeter `rock_set_*` (roots) | `position.y: 0 → varied within -0.06 to -0.12` |
 | `Assets/Editor/QuestBuildAPK.cs` | Added `GroundStones()` method + `[MenuItem("Tools/Quest Setup/Ground Stones")]` |
 | `Assets/Scenes/CampfireRoom.unity` | Saved with the above transform changes |
 
@@ -70,7 +93,7 @@ Nothing else touched. Networking, voice, room code, LAN/Internet/Relay logic, XR
 
 1. **Hand rotation may be wrong direction or wrong magnitude.** Without headset verification, `+45°` X-pitch is an educated guess based on typical Oculus Touch grip-pose vs pointer-pose offsets. The fix may need to be a different angle (most likely in the 30–70° range) or even a different axis (Y or Z) if the FBX's local forward axis doesn't match assumption. Tuning is a single field edit per hand.
 2. **Hand mesh handedness.** UniversalController.fbx is a single shared mesh used for both hands. If the model is asymmetric in a way that reads "right-handed" or "left-handed", the wrong hand may look mirrored. Fix is `localScale.x = -0.9` on one side (mirroring via negative scale).
-3. **Stone embed depth may be too aggressive or too shallow on individual rocks.** Different `rock_set_*` instances are scaled differently (perimeter rocks at scale 0.4, seats at 0.4 Y-scale, etc.), so a uniform 8 cm absolute lower might bury smaller rocks more than larger ones. Re-running with a different `StoneEmbedDepth` constant is a one-line edit. The helper is idempotent so a follow-up reduces the embed rather than stacking.
+3. **Per-category embed ranges may need tuning.** Seats sit at 0.05–0.08 m and rocks at 0.06–0.12 m by deterministic name-hash. If the range still reads as "too uniform" or "too varied" in headset, the four range constants in `QuestBuildAPK.cs` (`SeatMinEmbed` / `SeatMaxEmbed` / `RockMinEmbed` / `RockMaxEmbed`) are one-line edits each; re-running the helper after a constant change re-targets every stone idempotently. Still needs **headset visual validation** to confirm the varied depths read as natural rather than as a uniform 8 cm extrusion.
 4. **Seat sit height changed by 8 cm.** Players sit at world Y=1.2 (camera offset) regardless, so eye height is unchanged — but the *perceived* gap between bottom and seat surface shrank. Should still feel like a stone you sit on (top ≈ 42 cm) rather than a stool, but worth a sanity check in headset.
 5. **`rock_set_*` is a name-based match.** Any future rock that uses the same FBX but a different name would be missed. Easily extended via the `StonePrefixes` constant in `QuestBuildAPK.cs`.
 6. **The 17-stone batch grounding includes the perimeter rocks** that the user hand-placed in earlier slices. If any of those were *intentionally* sitting slightly above ground (e.g. as broken/tilted), they were lowered uniformly. Re-runs of `Ground Stones` are no-ops past the threshold, but the first run already committed the embed. A specific perimeter rock can be raised individually back via the Inspector if needed.
@@ -84,7 +107,7 @@ These can't be confirmed from the flat Editor view; the next two-Quest session s
    - Still pointing forward unchanged → likely the FBX's local axis doesn't match the assumption; try a different axis (e.g. `localEulerAngles = (0, 0, -45)` or `(60, 0, 0)`).
    - Looks correct in one hand but mirrored in the other → flip one hand with `localScale.x = -0.9` (or apply different rotations per hand).
 2. **No clipping under the hand mesh** as the user gestures — at scale 0.9, the controller mesh is ~10 × 7 × 5 cm, so even at a 45° pitch it shouldn't intersect the seat or wood pile in casual use, but worth a quick visual.
-3. **Stones look embedded, not buried.** From the seated view, the lowered stones should appear to sit naturally in the dirt rather than visibly clipping into a flat surface. If the 8 cm embed reads as "sunk too far", drop the constant to 0.05 m and re-run; if "still floating", raise to 0.10 m.
+3. **Stones look embedded, not buried — and the variation reads as natural.** From the seated view, the lowered stones should appear to sit naturally in the dirt rather than visibly clipping into a flat surface. Different stones now embed at different depths within the per-category ranges (seats 0.05–0.08 m, rocks 0.06–0.12 m); the variation should subtly disrupt the previously-uniform extrusion. If the spread reads as "too random", tighten the rock range (e.g. 0.07–0.10 m); if "still too uniform", widen to 0.05–0.14 m. Both are one-line edits to the constants in `QuestBuildAPK.cs`.
 4. **Sit-height comfort.** The stone seat tops now sit at world Y ≈ 0.42. Visually the player should still read "I'm sitting on a stone" from inside the headset, not "I'm hovering above a half-sunken stone".
 5. **Campfire composition still reads as a circle of kerbstones around the wood pile.** The 4 fire-pit `rock_set_01..04` got the same uniform lower; the ring should still look like a defined fire pit, not like four scattered rocks half-buried.
 

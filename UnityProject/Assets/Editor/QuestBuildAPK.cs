@@ -32,11 +32,24 @@ public static class QuestBuildAPK
     // share the same Mountain Terrain rock_set FBX, whose pivot sits at the
     // mesh bottom. Placed at world Y=0 they line up exactly with the Ground
     // plane and read as "placed on top" instead of "embedded in the floor".
-    // Lowers their Y by StoneEmbedDepth so the base dips below the ground.
-    // Idempotent: skips rocks already below SkipBelowY.
-    private const float StoneEmbedDepth = 0.08f;
-    private const float StoneSkipBelowY = -0.05f;
-    private static readonly string[] StonePrefixes = { "rock_set_", "StoneSeat_" };
+    // Sets each stone to an absolute Y derived deterministically from its
+    // GameObject name, so different stones embed at different depths and
+    // the row of kerbstones stops looking extruded with a single tool.
+    // Seats stay shallower (still tall enough to sit on); decorative rocks
+    // span a wider range.
+    //
+    // Re-runnable: target Y is a pure function of the name, so the same
+    // stone always lands at the same depth across runs and machines.
+    // Idempotent: stones already within StoneSkipTolerance of their target
+    // are skipped.
+    private const float SeatMinEmbed = 0.05f;          // 5 cm
+    private const float SeatMaxEmbed = 0.08f;          // 8 cm — keeps top ≈ 0.42 m at the default 0.4 scale
+    private const float RockMinEmbed = 0.06f;          // 6 cm
+    private const float RockMaxEmbed = 0.12f;          // 12 cm
+    private const float StoneSkipTolerance = 0.005f;   // 5 mm — re-run no-op band
+
+    private const string SeatPrefix = "StoneSeat_";
+    private const string RockPrefix = "rock_set_";
 
     [MenuItem("Tools/Quest Setup/Ground Stones")]
     public static void GroundStones()
@@ -44,17 +57,44 @@ public static class QuestBuildAPK
         int touched = 0, skipped = 0;
         foreach (var go in EditorSceneManager.GetActiveScene().GetRootGameObjects())
         {
-            if (!StonePrefixes.Any(p => go.name.StartsWith(p))) continue;
+            bool isSeat = go.name.StartsWith(SeatPrefix);
+            bool isRock = go.name.StartsWith(RockPrefix);
+            if (!isSeat && !isRock) continue;
+
+            float minEmbed = isSeat ? SeatMinEmbed : RockMinEmbed;
+            float maxEmbed = isSeat ? SeatMaxEmbed : RockMaxEmbed;
+            float fraction = StableHashFraction(go.name);
+            float targetY = -Mathf.Lerp(minEmbed, maxEmbed, fraction);
+
             var t = go.transform;
-            if (t.position.y <= StoneSkipBelowY) { skipped++; continue; }
-            var p2 = t.position;
-            p2.y -= StoneEmbedDepth;
-            t.position = p2;
+            if (Mathf.Abs(t.position.y - targetY) <= StoneSkipTolerance)
+            {
+                skipped++;
+                continue;
+            }
+
+            var p = t.position;
+            p.y = targetY;
+            t.position = p;
             EditorUtility.SetDirty(go);
             touched++;
         }
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log($"[QuestBuildAPK] Grounded {touched} stone(s) by {StoneEmbedDepth:F2} m; skipped {skipped} already-embedded.");
+        Debug.Log($"[QuestBuildAPK] Grounded {touched} stone(s) with varied embed " +
+                  $"(seats {SeatMinEmbed:F2}–{SeatMaxEmbed:F2} m, rocks {RockMinEmbed:F2}–{RockMaxEmbed:F2} m); " +
+                  $"skipped {skipped} already at target.");
+    }
+
+    // Custom stable hash → fraction in [0, 1). string.GetHashCode() is
+    // intentionally non-stable across .NET runtime versions, so we roll our
+    // own to guarantee the same name maps to the same fraction on every
+    // machine and re-launch — a stone keeps the same depth across runs.
+    private static float StableHashFraction(string s)
+    {
+        int h = 17;
+        for (int i = 0; i < s.Length; i++) h = unchecked(h * 31 + s[i]);
+        uint u = (uint)h;
+        return (u % 1000) / 1000f;
     }
 
     public static void BuildTo(string relativeApkPath)
