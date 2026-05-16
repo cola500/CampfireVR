@@ -148,8 +148,9 @@ Thumbs.db
 # Node (mcp-unity server build artefacts live inside Library/, already ignored)
 node_modules/
 
-# Claude Code (local-only settings)
+# Claude Code (local-only settings + collab guide)
 .claude/settings.local.json
+CLAUDE.md
 
 # MCP server config (contains absolute path + per-machine package hash; use .mcp.example.json)
 .mcp.json
