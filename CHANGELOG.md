@@ -1,4 +1,4 @@
-# Changelog
+ # Changelog
 
 Notable user-visible / tester-visible changes to CampfireVR.
 
@@ -10,7 +10,12 @@ Tone is "indie dev's notes for the friend testing the build" — not release cer
 (Things merged to `main` after the most recent published test build go here. Move them under a new version section when the next test build is cut.)
 
 ### Added
+- **Cozy mitten hand visuals** — procedural low-poly mittens (palm sphere + finger bulge + thumb + cuff) replace the XRI UniversalController mesh on the local hands. Warm wool tone matches the campfire palette. ~50 % fewer triangles than the controller mesh. Old mesh kept on disk as fallback via the existing `Tools/Quest Setup/Apply Hand Visuals` menu (`docs/cozy-mittens-slice.md`).
+- **Controller / hand visual audit** — investigation doc comparing six directions (keep + polish, install xr.hands, procedural mittens, CC0 import, Meta XR Core, OpenXR controller-model API) before committing to the mitten direction (`docs/controller-visuals-audit.md`).
+
 ### Changed
+- **Build artefacts now versioned**. `./scripts/build-quest.sh` writes `Builds/CampfireVR-<version>-<YYYYMMDD-HHMM>.apk` (kept forever) and updates `Builds/CampfireVR-latest.apk` (convenience pointer). Version tag is resolved from CHANGELOG → `bundleVersion` → `v0.1.0` fallback. `--install-only` defaults to `CampfireVR-latest.apk`; new `--apk PATH` flag installs a specific older versioned build. Old `CampfireVR-remote-fika-test-v0.1.apk` filename is retired (used internally as a temp build path).
+
 ### Fixed
 
 ## [v0.1.2-session-fix] — 2026-05-16 evening

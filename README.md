@@ -84,13 +84,23 @@ Networking model: each peer spawns a `PlayerHead` prefab on connect. Owner-autho
 # Plug in the Quest, then from the repo root:
 ./scripts/build-quest.sh --launch                # build + adb install -r + monkey-launch
 ./scripts/build-quest.sh --install               # build + adb install -r (don't auto-launch)
-./scripts/build-quest.sh                         # build only (APK lands in UnityProject/Builds/)
+./scripts/build-quest.sh                         # build only (writes to UnityProject/Builds/)
 
 # Re-deploy the most-recent APK without rebuilding (useful after a Quest reboot
 # or to share the same build to a second headset):
-./scripts/build-quest.sh --install-only --launch # skip build, install + launch
-./scripts/build-quest.sh --install-only          # skip build, install only
+./scripts/build-quest.sh --install-only --launch # skip build, install latest + launch
+./scripts/build-quest.sh --install-only          # skip build, install latest
+
+# Install a specific older versioned APK (e.g. roll back to a previous build):
+./scripts/build-quest.sh --apk UnityProject/Builds/CampfireVR-v0.1.2-session-fix-20260516-2025.apk --install
 ```
+
+Each successful build produces two files in `UnityProject/Builds/`:
+
+- `CampfireVR-<version>-<YYYYMMDD-HHMM>.apk` — versioned, kept forever (no auto-cleanup yet).
+- `CampfireVR-latest.apk` — copy of the most recent build, what `--install-only` defaults to.
+
+Version tag comes from `CHANGELOG.md`'s most recent `[v…]` heading (e.g. `v0.1.2-session-fix`), falling back to `bundleVersion` in `ProjectSettings.asset`, then `v0.1.0`. So if you want to bump the tag without rebuilding, just edit the CHANGELOG heading.
 
 The script wraps `Tools/Quest Setup/Build Remote Fika APK` (`QuestBuildAPK.Build`) in Unity batchmode, so you don't need to open the Editor. **Close the Editor first** if CampfireVR is open — Unity can't acquire the project lock from batchmode if the GUI is editing the same project. (`--install-only` skips the build entirely so the Editor can stay open.)
 

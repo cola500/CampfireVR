@@ -41,26 +41,38 @@ From the repo root, with Unity Editor **closed** (batchmode can't acquire the pr
 ./scripts/build-quest.sh
 ```
 
-Takes ~1 min warm, ~5–10 min if `Library/` is cold. APK lands at `UnityProject/Builds/CampfireVR-remote-fika-test-v0.1.apk`.
+Takes ~1 min warm, ~5–10 min if `Library/` is cold. Each successful build produces two files:
 
-The filename is intentionally static (`v0.1.apk`). The version *tag* lives in the CHANGELOG and the friend-package README, not in the APK filename — keeping the filename stable means `--install-only` doesn't need to know about version bumps.
+- `UnityProject/Builds/CampfireVR-<version>-<YYYYMMDD-HHMM>.apk` — the versioned artefact. Kept on disk forever (no auto-cleanup); this is what gets shared with friends.
+- `UnityProject/Builds/CampfireVR-latest.apk` — copy of the same bits under a stable name. `--install-only` defaults to this.
+
+The version segment comes from step 2 above — the first `## [v…]` heading in `CHANGELOG.md`. So bumping the changelog heading before the build automatically tags the resulting APK. (If CHANGELOG can't be parsed, the script falls back to `bundleVersion` from `ProjectSettings.asset`, then to `v0.1.0`.)
 
 To deploy directly to a USB-connected Quest:
 
 ```sh
-./scripts/build-quest.sh --install-only --launch   # uses the existing APK
+./scripts/build-quest.sh --install-only --launch                 # install CampfireVR-latest.apk
+./scripts/build-quest.sh --apk Builds/CampfireVR-v0.1.2-...apk --install   # roll back to an older versioned build
 ```
 
 ## 4. Create the friend package
 
+Use the *exact versioned APK filename* that step 3 produced — the friend's report later will reference this name, so we want it traceable:
+
 ```sh
+# Pick the latest versioned build (most recent mtime among versioned files).
+APK=$(ls -t UnityProject/Builds/CampfireVR-v*-*.apk | head -1)
+echo "Packaging $APK"
+
 rm -rf dist/friend-test
 mkdir -p dist/friend-test
-cp UnityProject/Builds/CampfireVR-remote-fika-test-v0.1.apk dist/friend-test/
+cp "$APK"                    dist/friend-test/
 cp docs/install-on-quest.md  dist/friend-test/INSTALL.md
 cp docs/debug-logging.md     dist/friend-test/DEBUG-LOGS.md
 cp CHANGELOG.md              dist/friend-test/CHANGELOG.md
 ```
+
+Then refresh `dist/friend-test/README.md` so the version is explicit: include the actual APK filename + the CHANGELOG version tag. When the friend reports a bug, the filename they downloaded tells you exactly which build it was.
 
 `docs/debug-logging.md` (= `DEBUG-LOGS.md` in the zip) covers `scripts/pull-quest-logs.sh` for the developer side and a manual `adb pull` recipe for testers who only have Platform Tools. The pull-script is *not* something the tester runs inside their headset — it runs on the computer their Quest is plugged into, after a session, to extract the JSONL logs for sending back.
 
