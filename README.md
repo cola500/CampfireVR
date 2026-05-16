@@ -80,6 +80,17 @@ Networking model: each peer spawns a `PlayerHead` prefab on connect. Owner-autho
 
 **Each iteration:**
 
+```sh
+# Plug in the Quest, then from the repo root:
+./scripts/build-quest.sh --launch     # build + adb install -r + monkey-launch
+./scripts/build-quest.sh --install    # build + adb install -r (don't auto-launch)
+./scripts/build-quest.sh              # build only (APK lands in UnityProject/Builds/)
+```
+
+The script wraps `Tools/Quest Setup/Build Remote Fika APK` (`QuestBuildAPK.Build`) in Unity batchmode, so you don't need to open the Editor. **Close the Editor first** if CampfireVR is open — Unity can't acquire the project lock from batchmode if the GUI is editing the same project.
+
+Manual fallback (if the script isn't an option):
+
 ```
 adb=/Applications/Unity/Hub/Editor/6000.4.7f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
 $adb devices                          # expect your Quest serial
@@ -87,7 +98,7 @@ $adb devices                          # expect your Quest serial
 # File → Build Settings → Build And Run   (or Cmd+B)
 ```
 
-The APK installs and launches automatically. Falling back to flat-screen Editor view: enable `Main Camera` and disable `VRRig`.
+The APK installs and launches automatically. Falling back to flat-screen Editor view: enable `Main Camera` and disable `VRRig`. See [docs/ci-cd-quest-build-plan.md](docs/ci-cd-quest-build-plan.md) for the longer plan (GitHub Actions compile-check Phase 2, Unity Cloud Build Phase 3).
 
 ## Multiplayer testing
 
