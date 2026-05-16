@@ -111,8 +111,55 @@ public class DebugLogger : MonoBehaviour
         catch { }
     }
 
+    // Mirrors scripts/build-quest.sh `generate_build_info`. Loaded once at
+    // session start so every log file's first event identifies which APK
+    // produced it (version, build timestamp, git commit, dirty flag).
+    [Serializable]
+    private class BuildInfo
+    {
+        public string version;
+        public string buildTime;
+        public string gitCommit;
+        public string gitCommitLong;
+        public string gitBranch;
+        public bool gitDirty;
+        public string apkName;
+        public string changelogVersion;
+        public string[] changelogSummary;
+    }
+
     private void WriteHeader()
     {
+        string buildVersion = "unknown";
+        string buildTime = "unknown";
+        string gitCommit = "unknown";
+        string gitBranch = "unknown";
+        bool gitDirty = false;
+        string apkName = "unknown";
+
+        try
+        {
+            var infoTxt = Resources.Load<TextAsset>("build-info");
+            if (infoTxt != null)
+            {
+                var info = JsonUtility.FromJson<BuildInfo>(infoTxt.text);
+                if (info != null)
+                {
+                    buildVersion = string.IsNullOrEmpty(info.version) ? buildVersion : info.version;
+                    buildTime    = string.IsNullOrEmpty(info.buildTime) ? buildTime   : info.buildTime;
+                    gitCommit    = string.IsNullOrEmpty(info.gitCommit) ? gitCommit   : info.gitCommit;
+                    gitBranch    = string.IsNullOrEmpty(info.gitBranch) ? gitBranch   : info.gitBranch;
+                    gitDirty     = info.gitDirty;
+                    apkName      = string.IsNullOrEmpty(info.apkName) ? apkName       : info.apkName;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            // Never crash the game over a log header. Build-info is best-effort.
+            Debug.LogWarning($"[DebugLogger] Could not parse build-info.json: {e.Message}");
+        }
+
         Log("app_started", "DebugLogger initialised",
             ("product_name", Application.productName),
             ("version", Application.version),
@@ -120,7 +167,13 @@ public class DebugLogger : MonoBehaviour
             ("device_model", SystemInfo.deviceModel),
             ("device_name", SystemInfo.deviceName),
             ("install_mode", Application.installMode.ToString()),
-            ("log_file", Path.GetFileName(_logFilePath)));
+            ("log_file", Path.GetFileName(_logFilePath)),
+            ("build_version", buildVersion),
+            ("build_time", buildTime),
+            ("git_commit", gitCommit),
+            ("git_branch", gitBranch),
+            ("git_dirty", gitDirty),
+            ("apk_name", apkName));
     }
 
     // -------- Public API ----------------------------------------------

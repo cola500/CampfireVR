@@ -6,7 +6,7 @@ CampfireVR writes timestamped, structured events to a local file on every Quest 
 
 | Event | When | Useful for |
 |---|---|---|
-| `app_started` | First frame after launch | Per-session header — product name, version, platform, device model, install mode |
+| `app_started` | First frame after launch | Per-session header — product name, version, platform, device model, install mode, plus build identity (build version, build time, git commit + branch, dirty flag, APK filename) |
 | `network_bootstrap_ready` | NetworkBootstrap.Start() | Initial mode, room letter, active scene |
 | `editor_key` | Editor key press (H/C/X/M/L) | Repro paths when iterating in flat-screen Editor |
 | `mode_changed` | Y press / M key | LAN ↔ Relay toggle |
@@ -45,6 +45,35 @@ Fields:
 - `event` — short snake_case name from the table above
 - `msg` — optional free-text description
 - everything else — per-event key/value details (`room`, `mode`, `id`, etc.)
+
+### Build identity in `app_started`
+
+Every session's first event includes build metadata read from `Assets/Resources/build-info.json` (regenerated per build by `scripts/build-quest.sh` — see [release-process.md](release-process.md)):
+
+```json
+{"ts":"2026-05-16T20:27:02.118","mono":0.412,"event":"app_started",
+ "msg":"DebugLogger initialised",
+ "product_name":"CampfireVR","version":"1.0",
+ "platform":"Android","device_model":"Oculus Quest 3",
+ "device_name":"Johan's Quest","install_mode":"Editor",
+ "log_file":"campfirevr-log-20260516-202702.jsonl",
+ "build_version":"v0.1.2-session-fix",
+ "build_time":"2026-05-16T20:27:02+0200",
+ "git_commit":"7a56b9d","git_branch":"main","git_dirty":true,
+ "apk_name":"CampfireVR-v0.1.2-session-fix-20260516-2027.apk"}
+```
+
+| Field | Source | What it tells you |
+|---|---|---|
+| `version` | `Application.version` (= `bundleVersion`) | Binary version Android reports |
+| `build_version` | CHANGELOG `## [v…]` heading | The human-friendly tag the APK was packaged under |
+| `build_time` | Build clock at script invocation | When this APK was actually compiled, with TZ offset |
+| `git_commit` | `git rev-parse --short HEAD` at build time | Exact commit, no guessing |
+| `git_branch` | `git rev-parse --abbrev-ref HEAD` | `main` for shipping builds; feature branch for experiments |
+| `git_dirty` | `true` if working tree had uncommitted changes when script ran | Trust signal — `true` means "this APK is from someone's WIP" |
+| `apk_name` | The versioned filename the script produced | Cross-reference with what the tester downloaded |
+
+If `build-info.json` is missing (e.g. the scene is being run in Editor without having built first), the build fields fall back to `"unknown"` / `false`. Builds produced by `scripts/build-quest.sh` always include it.
 
 ## Where logs are stored
 

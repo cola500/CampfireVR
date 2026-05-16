@@ -115,6 +115,83 @@ resolve_version() {
 VERSION=""    # resolved lazily, after arg parse, only if needed
 STAMP=""
 
+# Build-info JSON metadata written into Resources/ so DebugLogger can read it
+# at app startup and stamp every session log with the exact build identity.
+# The .json file is gitignored — regenerated per build. Unity auto-creates
+# its .meta on first import.
+BUILD_INFO_JSON="${PROJECT_PATH}/Assets/Resources/build-info.json"
+
+# Writes Assets/Resources/build-info.json. Called once before the Unity
+# batchmode invocation; the asset is then included in the APK as a
+# TextAsset under Resources/build-info.
+generate_build_info() {
+    local apk_name="$1"
+
+    local commit short_commit branch dirty build_time
+    commit=$( (cd "$REPO_ROOT" && git rev-parse HEAD 2>/dev/null) || echo "unknown")
+    short_commit=$( (cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null) || echo "unknown")
+    branch=$( (cd "$REPO_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null) || echo "unknown")
+    if (cd "$REPO_ROOT" && git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null); then
+        dirty="false"
+    else
+        dirty="true"
+    fi
+    build_time=$(date "+%Y-%m-%dT%H:%M:%S%z")
+
+    # Changelog summary: the bullets under the first non-empty `## ` block
+    # in CHANGELOG.md. Prefers `[Unreleased]` entries if present (= "what
+    # changed since the last shipped build"); otherwise falls through to
+    # the most recently shipped version's bullets. Max 5 entries, each
+    # truncated to ~80 chars and stripped down to the bolded title.
+    local summary=""
+    if [[ -f "$REPO_ROOT/CHANGELOG.md" ]]; then
+        summary=$(awk '
+            BEGIN { collecting = 0; n = 0 }
+            /^## / {
+                if (n > 0) exit
+                collecting = 1
+                next
+            }
+            collecting && /^- / && n < 5 {
+                line = $0
+                sub(/^- /, "", line)
+                sub(/^\*\*/, "", line)
+                sub(/\*\*.*/, "", line)
+                if (length(line) > 80) line = substr(line, 1, 77) "..."
+                gsub(/\\/, "\\\\", line)
+                gsub(/"/,  "\\\"", line)
+                n++
+                out[n] = line
+            }
+            END {
+                for (i = 1; i <= n; i++) {
+                    printf "%s\"%s\"", (i == 1 ? "" : ","), out[i]
+                }
+            }
+        ' "$REPO_ROOT/CHANGELOG.md")
+    fi
+
+    mkdir -p "$(dirname "$BUILD_INFO_JSON")"
+    cat > "$BUILD_INFO_JSON" <<EOF
+{
+  "version":           "${VERSION}",
+  "buildTime":         "${build_time}",
+  "gitCommit":         "${short_commit}",
+  "gitCommitLong":     "${commit}",
+  "gitBranch":         "${branch}",
+  "gitDirty":          ${dirty},
+  "apkName":           "${apk_name}",
+  "changelogVersion":  "${VERSION}",
+  "changelogSummary":  [${summary}]
+}
+EOF
+
+    echo "[build-info] ${VERSION} · ${short_commit}$([ "$dirty" = "true" ] && echo "-dirty") · ${branch} · ${build_time}"
+    if [[ "$dirty" == "true" ]]; then
+        echo "[build-info] ⚠ Repo is dirty — uncommitted changes are baked into this APK." >&2
+    fi
+}
+
 SKIP_BUILD=0
 INSTALL=0
 LAUNCH=0
@@ -162,6 +239,11 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     mkdir -p "$OUTPUT_DIR"
     echo "[build] Unity ${UNITY_VERSION} · version tag = ${VERSION} · stamp = ${STAMP}"
     echo "[build] (Close the Editor first if CampfireVR is open in the GUI.)"
+
+    # Generate build-info.json BEFORE Unity batchmode so it gets imported as
+    # a TextAsset under Resources/ and included in the APK. DebugLogger loads
+    # it at app startup to stamp the session log with the exact build identity.
+    generate_build_info "$(basename "$VERSIONED_APK")"
 
     # Verify Unity actually wrote a fresh file by tracking the temp path's mtime.
     # Unity sometimes exits 0 even when BuildResult is Failed — the timestamp

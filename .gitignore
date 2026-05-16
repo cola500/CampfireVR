@@ -5,6 +5,14 @@ UnityProject/\.utmp/
 UnityProject/Assets/Resources/PerformanceTest*.json
 UnityProject/Assets/Resources/PerformanceTest*.json.meta
 
+# Build metadata — regenerated per build by scripts/build-quest.sh
+# (timestamp + git SHA + dirty flag baked in). Loaded by DebugLogger at app
+# startup so each session log identifies the exact APK that produced it.
+# Gitignored to avoid polluting history with every test-build timestamp; the
+# .meta is auto-created by Unity on first import and is also per-machine.
+UnityProject/Assets/Resources/build-info.json
+UnityProject/Assets/Resources/build-info.json.meta
+
 # Photon: keep core libs and scripts but drop demos/docs and unused platforms (we only ship Android/macOS).
 UnityProject/Assets/Photon/*/Demos/
 UnityProject/Assets/Photon/*/Demos.meta

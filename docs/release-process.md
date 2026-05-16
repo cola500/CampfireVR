@@ -48,6 +48,30 @@ Takes ~1 min warm, ~5–10 min if `Library/` is cold. Each successful build prod
 
 The version segment comes from step 2 above — the first `## [v…]` heading in `CHANGELOG.md`. So bumping the changelog heading before the build automatically tags the resulting APK. (If CHANGELOG can't be parsed, the script falls back to `bundleVersion` from `ProjectSettings.asset`, then to `v0.1.0`.)
 
+### Build metadata baked into every APK
+
+Before Unity batchmode runs, the script writes `UnityProject/Assets/Resources/build-info.json` capturing the exact identity of this build:
+
+```json
+{
+  "version":          "v0.1.3-suffix",
+  "buildTime":        "2026-05-16T20:27:02+0200",
+  "gitCommit":        "7a56b9d",
+  "gitCommitLong":    "7a56b9dbd0647ef2f95b02cb93dc4d7178b033f2",
+  "gitBranch":        "main",
+  "gitDirty":         false,
+  "apkName":          "CampfireVR-v0.1.3-suffix-20260516-2027.apk",
+  "changelogVersion": "v0.1.3-suffix",
+  "changelogSummary": ["First bullet from CHANGELOG", "Second bullet", ...]
+}
+```
+
+`DebugLogger` reads this at app startup via `Resources.Load<TextAsset>("build-info")` and stamps the session log's `app_started` event with `build_version`, `build_time`, `git_commit`, `git_branch`, `git_dirty`, `apk_name`. See [debug-logging.md](debug-logging.md#build-identity-in-app_started) for the exact fields.
+
+The file is **gitignored** (`UnityProject/Assets/Resources/build-info.json` + `.meta`) so per-build timestamps and git SHAs don't pollute commit history. Regenerated fresh on every `./scripts/build-quest.sh` invocation; safe to delete locally — the next build recreates it.
+
+If the script runs against a dirty working tree, it prints a `⚠ Repo is dirty — uncommitted changes are baked into this APK.` warning to stderr and sets `"gitDirty": true`. Useful trust signal when a tester reports a problem on a build that didn't come from a clean commit.
+
 To deploy directly to a USB-connected Quest:
 
 ```sh
@@ -66,10 +90,36 @@ echo "Packaging $APK"
 
 rm -rf dist/friend-test
 mkdir -p dist/friend-test
-cp "$APK"                    dist/friend-test/
-cp docs/install-on-quest.md  dist/friend-test/INSTALL.md
-cp docs/debug-logging.md     dist/friend-test/DEBUG-LOGS.md
-cp CHANGELOG.md              dist/friend-test/CHANGELOG.md
+cp "$APK"                                              dist/friend-test/
+cp docs/install-on-quest.md                            dist/friend-test/INSTALL.md
+cp docs/debug-logging.md                               dist/friend-test/DEBUG-LOGS.md
+cp CHANGELOG.md                                        dist/friend-test/CHANGELOG.md
+cp UnityProject/Assets/Resources/build-info.json       dist/friend-test/BUILD-INFO.json
+```
+
+`BUILD-INFO.json` is the same metadata baked into the APK — handy for the friend (or future-you) to see the exact build identity without launching the headset. A short `RELEASE-NOTES.md` is one shell snippet away:
+
+```sh
+# Synthesise dist/friend-test/RELEASE-NOTES.md from build-info.json + CHANGELOG.
+python3 -c "
+import json, pathlib
+info = json.loads(pathlib.Path('UnityProject/Assets/Resources/build-info.json').read_text())
+dirty = ' (uncommitted changes)' if info['gitDirty'] else ''
+bullets = '\n'.join('- ' + b for b in info['changelogSummary']) or '- See CHANGELOG.md.'
+print(f'''# CampfireVR — {info[\"version\"]}
+
+**APK:** {info[\"apkName\"]}
+**Built:** {info[\"buildTime\"]}
+**Commit:** {info[\"gitCommit\"]} on {info[\"gitBranch\"]}{dirty}
+
+## What's new
+
+{bullets}
+
+See CHANGELOG.md for the full per-version history, INSTALL.md for the install
+walkthrough, and DEBUG-LOGS.md for how to send logs back if something breaks.
+''')
+" > dist/friend-test/RELEASE-NOTES.md
 ```
 
 Then refresh `dist/friend-test/README.md` so the version is explicit: include the actual APK filename + the CHANGELOG version tag. When the friend reports a bug, the filename they downloaded tells you exactly which build it was.
@@ -139,16 +189,17 @@ There's currently no in-VR version display. If you find yourself wanting one, a 
 
 ```sh
 # 1. Update changelog (move Unreleased → new version)
-# 2. Build
+# 2. Build (writes build-info.json + versioned APK + latest APK)
 ./scripts/build-quest.sh
 
 # 3. Package
 rm -rf dist/friend-test && mkdir -p dist/friend-test
-cp UnityProject/Builds/*.apk dist/friend-test/
-cp docs/install-on-quest.md dist/friend-test/INSTALL.md
-cp docs/debug-logging.md    dist/friend-test/DEBUG-LOGS.md
-cp CHANGELOG.md             dist/friend-test/CHANGELOG.md
-# (write/refresh dist/friend-test/README.md)
+cp UnityProject/Builds/CampfireVR-v*-*.apk         dist/friend-test/
+cp docs/install-on-quest.md                        dist/friend-test/INSTALL.md
+cp docs/debug-logging.md                           dist/friend-test/DEBUG-LOGS.md
+cp CHANGELOG.md                                    dist/friend-test/CHANGELOG.md
+cp UnityProject/Assets/Resources/build-info.json   dist/friend-test/BUILD-INFO.json
+# (write/refresh dist/friend-test/README.md and optional RELEASE-NOTES.md per recipe above)
 ( cd dist && zip -r "CampfireVR-friend-test-vX.Y.Z-suffix.zip" friend-test/ )
 
 # 4. Commit changelog
