@@ -132,3 +132,46 @@ For "make the flame feel more alive on Quest without changing the project's pipe
 ## Verdict
 
 The package is realistically usable in this BiRP project. The **smallest-safe next experiment** is a single-prefab swap: instantiate `VFX_Fire`, disable its smoke ParticleSystem, disable our capsule mesh renderer, keep everything else. ~30 minutes of work, no new code, no scene-layout changes, no networking/voice/UX impact, sub-millisecond Quest cost. Worth doing — and worth keeping the polish-slice fallback intact so we can A/B compare in headset.
+
+---
+
+## Integration (2026-05-16)
+
+Done as a separate slice. Scene state after integration:
+
+```
+Flame (kept; MeshRenderer disabled — capsule no longer rendered)
+├── FireCrackleAudio (unchanged)
+├── Embers (unchanged, ParticleSystem still active)
+└── VFX_Fire  (new; root of prefab — was supposed to host smoke)
+      • ParticleSystem.playOnAwake = false
+      • ParticleSystem.maxParticles = 0
+      • ParticleSystemRenderer.enabled = false
+      └── VFX_Fire  (child of prefab — flame particle system)
+            • ParticleSystem unchanged (playOnAwake true, maxParticles 20)
+            • Material: A_FlameAdd 1 (Mobile/Particles/Additive)
+```
+
+**Exact prefab used:** `Assets/VFXPACK_FIRE_WALLCOEUR/Prefab/VFX_Fire.prefab`, instantiated as a child of the existing `Flame` GameObject at default position (inherits Flame's world transform — position (0, 0.55, 0), lossyScale (0.3, 0.45, 0.3)).
+
+**What was disabled:**
+- The smoke ParticleSystem on the root prefab GameObject. Two independent safety nets keep smoke silenced (final state):
+  - `maxParticles: 0` — hard cap, can never emit a single particle
+  - `ParticleSystemRenderer.enabled: false` — nothing rendered even if simulation runs
+  - (`playOnAwake` was originally set to false too, but mcp-unity's prefab-modification handling means changing `playOnAwake` on the child also touches the root and vice-versa. Setting the flame child's `playOnAwake = true` reverted the smoke's `playOnAwake` back to true. That's fine — the two safeties above are independent and sufficient.)
+- The `MeshRenderer` on the original `Flame` capsule (the GameObject is kept active because `FireCrackleAudio`, `Embers`, and the new `VFX_Fire` are children of it; only the visible capsule mesh is gone).
+
+**Embers stayed enabled** by default (status quo — not destroying earlier polish work without headset verification). If the new flame feels visually busy when combined with our drifting ember dots, toggle the `Embers` GameObject off in the Inspector — that's the A/B test. Both can also be enabled together since they render via additive blending and total overdraw stays comfortably under Quest budget at these particle counts (24 + 20 = 44 maximum particles).
+
+**Size note:** the prefab uses `scalingMode: Local` on its particle systems, so particles are 0.6 m each regardless of the (0.3, 0.45, 0.3) parent scale. With 20 particles + colorOverLifetime fade, expected visible flame extent is roughly 1–1.5 m tall — bigger than the previous 0.9 m capsule. If this reads as "too big" in headset, two adjustment paths:
+- Quick: set `localScale` on `Flame/VFX_Fire` (the new prefab root) to e.g. (0.5, 0.5, 0.5).
+- Per-PS: change `Flame/VFX_Fire/VFX_Fire` (the flame child) ParticleSystem's `scalingMode` from `Local` to `Hierarchy` so it inherits the existing small parent scale.
+
+**Fallback path** (the polish-slice fire is intact, just hidden):
+1. Re-enable the `Flame` GameObject's `MeshRenderer` in the Inspector → capsule flame returns.
+2. Set the `Flame/VFX_Fire` (prefab root) GameObject to inactive → the entire WALLCOEUR addition is gone.
+3. `Embers` and `FireLight` were never touched — they continue working in either configuration.
+
+**Console state after integration:** zero shader compile errors, zero magenta-shader warnings, zero new warnings from the swap. Three pre-existing deprecation errors fire during scene save on the `FireCrackleAudio` AudioSource (`rolloffFactor`, `minVolume`, `maxVolume` no longer supported) — these are Editor-only, not from this slice, and don't affect the build.
+
+**No networking, voice, tutorial, starfield, or layout changes.**
