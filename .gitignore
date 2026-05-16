@@ -95,6 +95,11 @@ sysinfo.txt
 *.unitypackage
 *.app
 
+# Local distribution artifacts (friend-test packages: APK + zip + bundled docs).
+# Rebuilt fresh per session via scripts/build-quest.sh + a manual `cp + zip`
+# pass; the docs that get bundled live in docs/ and are committed there.
+dist/
+
 # Visual Studio / Rider / IDE
 .vs/
 .idea/
