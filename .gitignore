@@ -25,6 +25,13 @@ UnityProject/Assets/Real Stars Skybox.meta
 # kept available for a future scene-polish slice. Don't commit the source.
 UnityProject/Assets/Piloto Studio/
 UnityProject/Assets/Piloto Studio.meta
+
+# WALLCOEUR VFX URP - Fire Package (Unity Asset Store — same EULA).
+# Imported locally via Package Manager → My Assets. Evaluated in
+# docs/vfx-fire-package-evaluation.md — BiRP-compatible, candidate for
+# the next campfire-polish slice. Source must not be committed.
+UnityProject/Assets/VFXPACK_FIRE_WALLCOEUR/
+UnityProject/Assets/VFXPACK_FIRE_WALLCOEUR.meta
 UnityProject/[Oo]bj/
 UnityProject/[Bb]uild/
 UnityProject/[Bb]uilds/
