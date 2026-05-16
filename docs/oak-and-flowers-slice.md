@@ -114,6 +114,102 @@ Compositional rule: nothing new added in the central seating triangle (player A 
 
 Re-running `Tools/Quest Setup/Place Oak and Flowers` after tuning the constants at the top of `OakAndFlowersSetup.cs` regenerates each object in place. Idempotent — won't duplicate.
 
+## Oak wind polish
+
+A subtle leaf-shimmer on the oak's canopy + billboard, no perceptible trunk motion. Goal is "calm evening breeze" — the kind of motion you'd register as "this tree is alive" rather than consciously look at.
+
+### Implementation approach
+
+The ALP "Big Oak Tree FREE" pack ships shaders with built-in wind support:
+
+| Material | Shader | Wind support |
+|---|---|---|
+| `Branches001.mat` (canopy) | `ALP Cutout Translucency Wind.shader` | Yes — vertex sway driven by shader globals |
+| `BillboardBigOak01.mat` | `ALP Cutout Translucency Wind.shader` | Yes — same path |
+| `Trunk01.mat` | `ALP Surface Detail Wind.shader` | Supports it but our settings keep trunk motion at zero (heavy/grounded feel) |
+
+The shaders read `_GlobalWindIntensity`, `_GlobalWindPulse`, `_GlobalWindTurbulence`, etc. as shader globals — each value is set on every `Update()` by an `ALP8310Controller` MonoBehaviour. Without that controller in the scene, the globals stay at zero and nothing animates. We add one instance at `World/Environment/Forest/OakWindController` and tune it for the cozy target.
+
+`OakAndFlowersSetup.PlaceWindController()` is the single source of truth — re-running `Tools/Quest Setup/Place Oak and Flowers` re-applies the constants from the top of the file. Idempotent: existing controller gets its values updated, no duplicate spawned.
+
+### Wind settings used
+
+```
+WindStrength            0.10    (~2 % of ALP's Reset() default of 5.0)
+WindPulse               0.30    (slow cycle; Reset defaults to 0.5)
+WindTurbulence          0.12    (gentle variance; Reset = 1.0)
+WindRandomness          0.15
+WindDirection           0
+BillboardWindEnabled    true
+BillboardWindIntensity  0.06    (barely-there; Reset = 0.5)
+SynchWindZone           false   (we drive globals directly, no Unity WindZone)
+SynchTheVegetationEngine  false
+SynchMicrosplat         false
+```
+
+Why these specific values:
+- **`WindStrength 0.10`** — anything above ~0.3 starts to look like "a noticeable wind", which breaks the cozy seated vibe. 0.10 produces a barely-perceptible canopy shimmer that you have to look for.
+- **`WindPulse 0.30`** — slow cycle (~3 s wavelength). Fast pulse reads as "windy day"; slow pulse reads as "evening breeze that comes and goes". Lower than 0.2 starts to feel mechanical.
+- **`WindTurbulence 0.12`** — small variance so the motion isn't a clean sine wave. Higher values introduce per-frame jitter that reads as noise rather than nature.
+- **`BillboardWindIntensity 0.06`** — the far-LOD billboard should barely sway; the player rarely sees the billboard from this seated viewpoint, so the value is mostly future-proofing for camera moves.
+
+### Why subtle was chosen
+
+Cozy seated VR is a low-stimulation context. Even a "moderate" wind reads as agitating in headset — your brain registers the constant motion peripherally and treats it as something demanding attention. By keeping the canopy motion below the conscious-detection threshold for a focused viewer (the player is usually looking at their friend across the fire, not the oak overhead), the oak feels "alive but unintrusive" — adding to the place without becoming a feature.
+
+Also: VR motion-sickness budget. Periodic motion in peripheral vision can contribute to discomfort even when the player isn't moving. The values here are well below that threshold.
+
+### What was NOT touched
+
+- **Flower clusters** — Standard-Cutout material, no shader wind support, no motion. Confirmed unaffected.
+- **Existing grass tufts** (`GrassTuft_*`) — Standard shader, no wind support. The ALP shader globals don't affect them.
+- **Existing pine trees** (`tree_01` from Mountain Terrain pack) — different shaders entirely, no ALP globals consumed.
+- **Trunk material** — supports wind via `ALP Surface Detail Wind` but our settings keep it visually static. The shader's wind sampling is vertex-cost negligible regardless.
+- **`Trunk01.mat` shader fields** themselves — left at the pack's defaults; only the global controller values matter.
+
+### Performance
+
+| Cost | Note |
+|---|---|
+| CPU per frame | One `Update()` call on `ALP8310Controller` setting ~7 shader globals — sub-microsecond. |
+| GPU per frame | Wind animation is computed in the existing vertex shader of leaves/billboard — no extra draw call, no extra pass. Folded into the canopy's normal cost. |
+| Memory | Zero. No textures, no meshes, no allocations. |
+| Draw calls | Unchanged from pre-wind state. |
+| Frame time impact | Not measurable on Quest 3. |
+
+The component is `[ExecuteInEditMode]` so wind also animates in the Editor view — useful for tuning without needing a build.
+
+### Why wind is not extended to other trees
+
+When the wind controller was first added, an obvious follow-up question was: should the same controller animate the 38 pine trees (`tree_01` from Mountain Terrain) in the surrounding forest too? The investigation answer was **no**, and the controller is intentionally named `OakWindController` rather than `ForestWindController` to reflect that.
+
+**Empirical scope check** — `ALP8310Controller` sets shader globals like `_GlobalWindIntensity` and `_GlobalWindPulse` on every `Update()`. Those globals only affect materials whose **shaders sample them**. The three ALP wind shaders that do are used by exactly three materials in the project:
+
+| Material | Shader | Belongs to |
+|---|---|---|
+| `Branches001.mat` | `ALP Cutout Translucency Wind` | Oak canopy |
+| `BillboardBigOak01.mat` | `ALP Cutout Translucency Wind` | Oak distant billboard |
+| `Trunk01.mat` | `ALP Surface Detail Wind` | Oak trunk |
+
+The 38 pine instances use Unity's built-in `Standard` (bark) + `Nature/Tree Soft Occlusion Leaves` (leaves) shaders, which do not read `_Global*` wind values. So the wind controller is **already naturally scoped to the oak** by shader compatibility — no extra guarding needed, no "rename to forest-wide" required.
+
+**Why we don't extend to the pines** even though it's technically possible:
+
+1. **Vendor pack fragility.** Replacing `leaves_01.mat`'s shader with `ALP Cutout Translucency Wind` would modify a file inside the gitignored `Mountain Terrain rocks and tree/` directory — lost on every fresh clone + re-import. We'd need an Editor helper to re-apply it after import, matching the `MittenHandsSetup` pattern, which adds maintenance surface for marginal gain.
+2. **Missing vertex data.** The ALP shader bows individual leaves using vertex-color channels written by the FBX exporter (SpeedTree convention). The Mountain Terrain pine FBX doesn't have those channels — without them, the shader falls back to whole-tree displacement, which looks like the pines are being shoved by gusts rather than rustling. Wrong behaviour, not just wrong magnitude.
+3. **Visual budget.** Even at `WindStrength 0.10`, 38 simultaneous swaying trees in peripheral vision is no longer "subtle" — it's a forest that's actively moving. The point of the slice was "the oak is the alive landmark, the pines are the static backdrop". Saturating the periphery breaks that composition.
+4. **Real-world physics agrees.** Pines (coniferous, stiff needles, thick trunks) genuinely sway less than oaks (deciduous broadleaf) in a calm evening breeze. The current asymmetry matches what a Scandinavian forest actually does.
+
+**If this question comes up again** (e.g. someone adds a third tree species and wonders if the same controller drives it): the answer is "only if the new species' material uses one of the three ALP wind shaders above". Anything using Standard, NSK, or other vendor shaders is invisible to this controller and would need either (a) shader replacement (per the fragility caveat above) or (b) a separate per-tree animation system (rejected by slice spec — no `Update()` transform wobble).
+
+### Headset validation needed
+
+- **Magnitude.** `WindStrength 0.10` is a first guess. If the canopy looks dead-still in headset (motion too subtle to read), bump to `0.20`. If it feels "windy" or distracting, drop to `0.06`.
+- **Pulse.** `0.30` should feel like slow swells. If the rhythm reads as "stiff" or "mechanical", try `0.20`. If it feels like nothing, try `0.45`.
+- **VR comfort.** Watch for any peripheral-motion discomfort during a 5+ minute session. If anyone reports nausea or distraction, reduce `WindStrength` and `BillboardWindIntensity` together.
+
+All adjustable via the constants at the top of `OakAndFlowersSetup.cs` + re-running the menu — idempotent re-tune in seconds.
+
 ## Future options
 
 In rough order of polish-value-per-effort:

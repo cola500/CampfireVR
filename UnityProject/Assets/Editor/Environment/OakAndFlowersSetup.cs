@@ -36,10 +36,37 @@ public static class OakAndFlowersSetup
     private const string FlowerTexPath   = "Assets/ALP_Assets/GrassFlowersFREE/Textures/GrassFlowers/grassFlower04.tga";
     private const string FlowerMatPath   = "Assets/Materials/MeadowFlower.mat";
 
+    private const string ForestParentPath  = "World/Environment/Forest";
     private const string TreesParentPath   = "World/Environment/Forest/Trees";
     private const string FlowersParentPath = "World/Environment/Forest/Flowers";
 
-    private const string OakObjectName = "OakBigTree_Clearing";
+    private const string OakObjectName            = "OakBigTree_Clearing";
+    private const string WindControllerObjectName = "OakWindController";
+
+    // Subtle "evening breeze" tuning for the ALP wind shader. The vendor's
+    // Reset() defaults (WindStrength=5, WindPulse=0.5, WindTurbulence=1.0,
+    // BillboardWindIntensity=0.5) read as a storm in a cozy seated VR scene.
+    // These values target "barely-noticeable canopy shimmer, no perceptible
+    // trunk sway" — the tree should still feel rooted and heavy.
+    //
+    // The controller component drives shader globals (_GlobalWindIntensity,
+    // _GlobalWindPulse, etc.) on every Update; the oak's leaf/billboard
+    // materials sample those globals in their vertex shaders. Zero CPU cost
+    // beyond the controller's tiny Update; the wind animation is GPU-side
+    // and folded into the existing draw calls.
+    //
+    // Scope: ONLY the oak responds. The 38 tree_01 pines in the scene use
+    // Unity's built-in Standard / Nature shaders, which don't sample these
+    // _Global* values. Replacing the pine leaf material with an ALP shader
+    // is unsafe — pine FBX lacks the vertex-color wind weights ALP expects,
+    // and 38 trees × any motion overwhelms the cozy seated-VR budget. See
+    // docs/oak-and-flowers-slice.md ("Why wind is not extended to other
+    // trees") for the full investigation.
+    private const float WindStrength           = 0.10f;   // ~2% of Reset default
+    private const float WindPulse              = 0.30f;   // slow cycle
+    private const float WindTurbulence         = 0.12f;   // gentle variance
+    private const float WindRandomness         = 0.15f;
+    private const float BillboardWindIntensity = 0.06f;
 
     // Oak placement: behind player A's seat, off to one side, far enough
     // that the canopy doesn't crowd the seated view but close enough to
@@ -67,9 +94,10 @@ public static class OakAndFlowersSetup
     [MenuItem("Tools/Quest Setup/Place Oak and Flowers")]
     public static void Apply()
     {
+        var forestParent  = EnsureSceneGroup(ForestParentPath);
         var treesParent   = EnsureSceneGroup(TreesParentPath);
         var flowersParent = EnsureSceneGroup(FlowersParentPath);
-        if (treesParent == null || flowersParent == null)
+        if (forestParent == null || treesParent == null || flowersParent == null)
         {
             Debug.LogError("[OakAndFlowersSetup] Could not resolve scene parents. Aborting.");
             return;
@@ -88,8 +116,13 @@ public static class OakAndFlowersSetup
             }
         }
 
+        // Always re-tune the wind controller — constants above are the source
+        // of truth, so re-running after edits propagates without needing to
+        // delete the existing controller.
+        bool windAdded = PlaceWindController(forestParent);
+
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log($"[OakAndFlowersSetup] Added {oakAdded} oak + {flowersAdded} flower cluster(s); existing objects with matching names were left untouched.");
+        Debug.Log($"[OakAndFlowersSetup] Added {oakAdded} oak + {flowersAdded} flower cluster(s){(windAdded ? " + wind controller" : " (wind controller re-tuned)")}.");
     }
 
     // -- oak --------------------------------------------------------------
@@ -115,6 +148,47 @@ public static class OakAndFlowersSetup
         ConfigureShadowFlagsOff(oak);
         EditorUtility.SetDirty(oak);
         return true;
+    }
+
+    // -- wind controller --------------------------------------------------
+
+    // Places (or re-tunes) the single ALP8310Controller in the scene. Wind
+    // is a global system — one controller drives every ALP shader instance
+    // via Shader.SetGlobalFloat, so only the oak's leaf/billboard materials
+    // sample these values. The flower cross-quads use Standard-Cutout and
+    // are unaffected, as desired.
+    private static bool PlaceWindController(Transform forestParent)
+    {
+        bool created = false;
+        var existing = forestParent.Find(WindControllerObjectName);
+        ALP8310Controller ctrl;
+        if (existing == null)
+        {
+            var go = new GameObject(WindControllerObjectName);
+            go.transform.SetParent(forestParent, worldPositionStays: false);
+            ctrl = go.AddComponent<ALP8310Controller>();
+            created = true;
+        }
+        else
+        {
+            ctrl = existing.GetComponent<ALP8310Controller>();
+            if (ctrl == null) ctrl = existing.gameObject.AddComponent<ALP8310Controller>();
+        }
+
+        ctrl.WindStrength            = WindStrength;
+        ctrl.WindDirection           = 0f;
+        ctrl.WindPulse               = WindPulse;
+        ctrl.WindTurbulence          = WindTurbulence;
+        ctrl.WindRandomness          = WindRandomness;
+        ctrl.BillboardWindEnabled    = true;
+        ctrl.BillboardWindIntensity  = BillboardWindIntensity;
+        ctrl.SynchWindZone           = false;   // we drive globals directly
+        ctrl.SynchTheVegetationEngine = false;
+        ctrl.SynchMicrosplat         = false;
+
+        EditorUtility.SetDirty(ctrl);
+        EditorUtility.SetDirty(ctrl.gameObject);
+        return created;
     }
 
     // -- flowers ----------------------------------------------------------

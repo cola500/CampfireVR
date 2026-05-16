@@ -9061,7 +9061,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7512474869427928877, guid: d95a6c783e91fea4d8096b66eb134ed5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -5.16
+      value: -5.7
       objectReference: {fileID: 0}
     - target: {fileID: 7512474869427928877, guid: d95a6c783e91fea4d8096b66eb134ed5, type: 3}
       propertyPath: m_LocalPosition.y
@@ -9069,7 +9069,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7512474869427928877, guid: d95a6c783e91fea4d8096b66eb134ed5, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 4.2
+      value: 4.89
       objectReference: {fileID: 0}
     - target: {fileID: 7512474869427928877, guid: d95a6c783e91fea4d8096b66eb134ed5, type: 3}
       propertyPath: m_LocalRotation.w
@@ -12283,6 +12283,7 @@ Transform:
   - {fileID: 1714122401}
   - {fileID: 1376767437}
   - {fileID: 1486369441}
+  - {fileID: 1674533041}
   m_Father: {fileID: 1281731731}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1627734297 stripped
@@ -12706,6 +12707,65 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1672662721}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1674533040
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1674533041}
+  - component: {fileID: 1674533042}
+  m_Layer: 0
+  m_Name: OakWindController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1674533041
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674533040}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1621654759}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1674533042
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674533040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60bc5f3d16a5ecd45b1350b99c4a0b1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ALP8310_ControllerGlobal::ALP8310Controller
+  windZone: {fileID: 0}
+  SynchWindZone: 0
+  SynchTheVegetationEngine: 0
+  SynchMicrosplat: 0
+  WindStrength: 0.1
+  WindDirection: 0
+  FadeWindDistanceMode: 0
+  FadeWindDistanceBias: 0
+  WindPulse: 0.3
+  WindTurbulence: 0.12
+  WindRandomness: 0.15
+  BillboardWindEnabled: 1
+  BillboardWindIntensity: 0.06
+  foldouts: 
+  guiContent: []
 --- !u!1 &1683026954
 GameObject:
   m_ObjectHideFlags: 0
