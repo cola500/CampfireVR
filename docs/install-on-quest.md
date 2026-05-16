@@ -175,13 +175,15 @@ To **recenter your seat** if the view feels off after putting the headset on: pr
 - **Headphones strongly recommended.** Quest speakers leak voice into the *other* Quest's microphone if both headsets are in earshot of each other (e.g. testing on the same couch). With headphones the spatial voice across the campfire works properly — you hear your friend from the seat across the fire, not from a tinny speaker.
 - **Sit down in a real chair** that supports your arms for 20+ minutes. The campfire is a seated experience, not a stand-up game.
 - **Internet mode** uses a free Unity Relay tier. No accounts to make, no settings to configure on your end.
-- **There's no in-VR quit button yet.** When you're done, press the **Meta button** on the right controller to return to the Quest home, then close CampfireVR from the dock.
+- **In-VR Stop**: long-press **left Y for ~1.5 s** to cleanly leave a session (voice + Relay + NGO shutdown). Short tap of Y still toggles mode. If you'd rather just quit the app entirely, press the **Meta button** to return to Quest home.
 - **The app icon still says "CampfireRoom"** in some Quest OS versions — historical name from before the rebrand. Same APK, same package, just a stale label.
 - **Room A is the no-touch default.** If you and your friend both launch and don't touch the stick, you'll both be on A and just need to press the right buttons (X to host, B to join). The room letter only matters if multiple pairs are testing at once.
 
 ## More info
 
 - Project README: <https://github.com/cola500/unity-mcp-lab/blob/main/README.md>
+- **What changed since the last build you tested**: [CHANGELOG.md](../CHANGELOG.md) — please mention which version you ran when you report something back. The APK filename + the `app_started` entry in your debug log together identify the build.
 - Full session protocol (the 20-minute "Remote Fika" structured hangout): [docs/remote-fika-test.md](remote-fika-test.md)
 - Single-letter room flow visual verification: [docs/verification/join-flow.md](verification/join-flow.md)
 - Build / CI plan if you want to build your own APKs: [docs/ci-cd-quest-build-plan.md](ci-cd-quest-build-plan.md)
+- How a new test build is cut + packaged: [docs/release-process.md](release-process.md)
