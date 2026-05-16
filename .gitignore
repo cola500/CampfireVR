@@ -42,9 +42,15 @@ UnityProject/Assets/NatureStarterKit2/
 UnityProject/Assets/NatureStarterKit2.meta
 
 # Jermesa Studio — Mountain Terrain Rocks and Tree (Unity Asset Store — same EULA).
-# Rock prefabs used by the forest-atmosphere slice. Tree + terrain unused.
+# Used: rock_set_01..04 + tree_01 (forest slice) and mountain_terrain_01 (this slice's backdrop).
 UnityProject/Assets/Mountain Terrain rocks and tree/
 UnityProject/Assets/Mountain Terrain rocks and tree.meta
+
+# Walker C — Terra (Unity Asset Store — same EULA).
+# Procedural terrain editor; we use only its Example/Textures/Dirt*.tga as a
+# ground material. Source not committed. See docs/terra-asset-audit.md.
+UnityProject/Assets/Terra/
+UnityProject/Assets/Terra.meta
 UnityProject/[Oo]bj/
 UnityProject/[Bb]uild/
 UnityProject/[Bb]uilds/
