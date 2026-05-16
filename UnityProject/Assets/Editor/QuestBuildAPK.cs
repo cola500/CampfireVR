@@ -97,6 +97,128 @@ public static class QuestBuildAPK
         return (u % 1000) / 1000f;
     }
 
+    // Drops a single dog instance from ithappy/Animals_FREE into the scene
+    // as a static companion. The pack ships URP-shader materials which
+    // render magenta in our Built-In RP scene, so we author our own warm
+    // brown Standard material and reassign it to the dog's SkinnedMesh.
+    // No AI, no audio — the prefab's Animator stays on, defaulting to the
+    // BlendTree's idle state (subtle breathing). Shadow casting disabled,
+    // CharacterController removed (no physics needed for a static prop).
+    //
+    // Idempotent: re-runs delete the previous DogCompanion before creating
+    // a fresh one.
+    private const string DogPrefabPath = "Assets/ithappy/Animals_FREE/Prefabs/Dog_001.prefab";
+    private const string DogCoatMaterialPath = "Assets/Materials/DogCoat.mat";
+    private const string DogInstanceName = "DogCompanion";
+    // Animals_FREE ships ONE shared atlas texture used by every animal — each
+    // animal's UVs map to its region of the atlas. Re-using it on a Built-In
+    // Standard material gives the dog its real coat colours without needing
+    // any extra texture work or pack-package import.
+    private const string DogAtlasTexturePath = "Assets/ithappy/Animals_FREE/Textures/Texture.png";
+
+    [MenuItem("Tools/Quest Setup/Add Dog Companion")]
+    public static void AddDogCompanion()
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(DogPrefabPath);
+        if (prefab == null)
+        {
+            Debug.LogError($"[QuestBuildAPK] Dog prefab not found at {DogPrefabPath}. Re-import Animals_FREE from Asset Store → My Assets.");
+            return;
+        }
+
+        // Reset if previously placed.
+        var existing = GameObject.Find(DogInstanceName);
+        if (existing != null) Object.DestroyImmediate(existing);
+
+        var dog = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        dog.name = DogInstanceName;
+
+        // Beside StoneSeat_A, slightly behind it and outside the seat-to-fire
+        // axis. Facing the fire (yaw 215° aims roughly toward origin from this
+        // spot). Y=0 — paws line up with the ground plane.
+        dog.transform.position = new Vector3(1.3f, 0f, 0.8f);
+        dog.transform.rotation = Quaternion.Euler(0f, 215f, 0f);
+        // Animals_FREE meshes are roughly real-world scale (1 unit = 1 m). A
+        // 0.5× scale reads as a medium dog curled by the fire.
+        dog.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+        // Replace URP/missing shader with our own Built-In Standard material.
+        var coat = GetOrCreateDogCoat();
+        foreach (var smr in dog.GetComponentsInChildren<SkinnedMeshRenderer>(includeInactive: true))
+        {
+            var mats = new Material[smr.sharedMaterials.Length];
+            for (int i = 0; i < mats.Length; i++) mats[i] = coat;
+            smr.sharedMaterials = mats;
+            smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            smr.receiveShadows = false;
+            EditorUtility.SetDirty(smr);
+        }
+        foreach (var mr in dog.GetComponentsInChildren<MeshRenderer>(includeInactive: true))
+        {
+            var mats = new Material[mr.sharedMaterials.Length];
+            for (int i = 0; i < mats.Length; i++) mats[i] = coat;
+            mr.sharedMaterials = mats;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            EditorUtility.SetDirty(mr);
+        }
+
+        // Static prop — strip the pack's runtime movement/AI scripts so the
+        // dog doesn't try to wander or read input. The scripts have a
+        // RequireComponent chain (MovePlayerInput → CreatureMover →
+        // CharacterController), so a single pass leaves dependents behind.
+        // Loop until no ithappy.Animals_FREE MonoBehaviour gets removed in a
+        // full pass; each pass peels one layer off the dependency stack.
+        // Animator (UnityEngine namespace) is always preserved so the
+        // BlendTree's default idle state keeps playing.
+        int prevCount = -1;
+        for (int pass = 0; pass < 8 && prevCount != 0; pass++)
+        {
+            int removed = 0;
+            foreach (var mb in dog.GetComponentsInChildren<MonoBehaviour>(includeInactive: true))
+            {
+                if (mb == null || mb is Animator) continue;
+                if (mb.GetType().Namespace != "ithappy.Animals_FREE") continue;
+                var owner = mb.gameObject;
+                int before = owner.GetComponents<MonoBehaviour>().Length;
+                Object.DestroyImmediate(mb);
+                if (owner.GetComponents<MonoBehaviour>().Length < before) removed++;
+            }
+            prevCount = removed;
+        }
+        // Now the CharacterController has no dependent scripts left.
+        var cc = dog.GetComponentInChildren<CharacterController>();
+        if (cc != null) Object.DestroyImmediate(cc);
+
+        EditorUtility.SetDirty(dog);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log($"[QuestBuildAPK] Placed {DogInstanceName} at {dog.transform.position}, scale {dog.transform.localScale.x:F2}×, coat={coat.name}.");
+    }
+
+    private static Material GetOrCreateDogCoat()
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(DogCoatMaterialPath);
+        if (mat == null)
+        {
+            var shader = Shader.Find("Standard");
+            mat = new Material(shader) { name = "DogCoat" };
+            AssetDatabase.CreateAsset(mat, DogCoatMaterialPath);
+        }
+        // Use the pack's shared atlas texture as the albedo. The dog's UVs
+        // sample its region of the atlas, so we get the real authored coat
+        // colours rather than a flat tint. White _Color lets the texture
+        // through unaltered; matte smoothness avoids fire-flicker glints.
+        var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(DogAtlasTexturePath);
+        if (atlas != null) mat.SetTexture("_MainTex", atlas);
+        else Debug.LogWarning($"[QuestBuildAPK] Dog atlas texture not found at {DogAtlasTexturePath} — DogCoat will render as flat colour. Re-import Animals_FREE.");
+        mat.SetColor("_Color", Color.white);
+        mat.SetFloat("_Metallic", 0f);
+        mat.SetFloat("_Glossiness", 0.08f);
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssetIfDirty(mat);
+        return mat;
+    }
+
     public static void BuildTo(string relativeApkPath)
     {
         if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
