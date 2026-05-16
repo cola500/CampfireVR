@@ -32,6 +32,19 @@ UnityProject/Assets/Piloto Studio.meta
 # the next campfire-polish slice. Source must not be committed.
 UnityProject/Assets/VFXPACK_FIRE_WALLCOEUR/
 UnityProject/Assets/VFXPACK_FIRE_WALLCOEUR.meta
+
+# Shapes — Nature Starter Kit 2 (Unity Asset Store — same EULA).
+# Trees, bushes, ground textures used by the forest-atmosphere slice.
+# Trimmed locally: kept Nature/, Textures/, Materials/. Removed
+# Standard Assets/, Editor/, Scene/, Animations/ (legacy post-processing
+# + demo scene, not relevant to our build). Source must not be committed.
+UnityProject/Assets/NatureStarterKit2/
+UnityProject/Assets/NatureStarterKit2.meta
+
+# Jermesa Studio — Mountain Terrain Rocks and Tree (Unity Asset Store — same EULA).
+# Rock prefabs used by the forest-atmosphere slice. Tree + terrain unused.
+UnityProject/Assets/Mountain Terrain rocks and tree/
+UnityProject/Assets/Mountain Terrain rocks and tree.meta
 UnityProject/[Oo]bj/
 UnityProject/[Bb]uild/
 UnityProject/[Bb]uilds/
