@@ -447,6 +447,29 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+--- !u!1 &157296251 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+  m_PrefabInstance: {fileID: 1478633715}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &157296256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 157296251}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: badcf653635df4162a97be3241dc2404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubtleTreeWind
+  amplitudeDegrees: 0.5
+  speed: 0.5
+  phaseOffset: 0
+  axis: {x: 1, y: 0, z: 0}
+  randomizeOnStart: 1
+  enableWind: 1
 --- !u!1001 &174641164
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6155,6 +6178,29 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c67ed6360e72a9848a4bc876f41e5c51, type: 3}
+--- !u!1 &382407422 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+  m_PrefabInstance: {fileID: 459579566}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &382407427
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 382407422}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: badcf653635df4162a97be3241dc2404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubtleTreeWind
+  amplitudeDegrees: 0.5
+  speed: 0.5
+  phaseOffset: 0
+  axis: {x: 1, y: 0, z: 0}
+  randomizeOnStart: 1
+  enableWind: 1
 --- !u!1001 &402565649
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6428,7 +6474,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 382407427}
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
 --- !u!1001 &463259104
 PrefabInstance:
@@ -6647,8 +6696,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2144983842}
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+--- !u!1 &498375815 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+  m_PrefabInstance: {fileID: 1540708946}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &498375820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 498375815}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: badcf653635df4162a97be3241dc2404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubtleTreeWind
+  amplitudeDegrees: 0.5
+  speed: 0.5
+  phaseOffset: 0
+  axis: {x: 1, y: 0, z: 0}
+  randomizeOnStart: 1
+  enableWind: 1
 --- !u!1001 &524214219
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9349,7 +9424,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 157296256}
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
 --- !u!1 &1487002664
 GameObject:
@@ -9525,7 +9603,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1908261165}
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
 --- !u!1001 &1511999021
 PrefabInstance:
@@ -9663,7 +9744,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 498375820}
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
 --- !u!1001 &1545798017
 PrefabInstance:
@@ -11285,6 +11369,29 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+--- !u!1 &1908261160 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+  m_PrefabInstance: {fileID: 1492352735}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1908261165
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1908261160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: badcf653635df4162a97be3241dc2404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubtleTreeWind
+  amplitudeDegrees: 0.5
+  speed: 0.5
+  phaseOffset: 0
+  axis: {x: 1, y: 0, z: 0}
+  randomizeOnStart: 1
+  enableWind: 1
 --- !u!1 &1911789376
 GameObject:
   m_ObjectHideFlags: 0
@@ -12123,6 +12230,29 @@ Transform:
   m_Children: []
   m_Father: {fileID: 930746768}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2144983837 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1521319932559390546, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
+  m_PrefabInstance: {fileID: 486546437}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2144983842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2144983837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: badcf653635df4162a97be3241dc2404, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SubtleTreeWind
+  amplitudeDegrees: 0.5
+  speed: 0.5
+  phaseOffset: 0
+  axis: {x: 1, y: 0, z: 0}
+  randomizeOnStart: 1
+  enableWind: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
