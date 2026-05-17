@@ -1,26 +1,27 @@
 # CampfireVR
 
-A cozy social VR experiment for Meta Quest 3, built entirely as thin vertical slices through Claude Code driving the Unity Editor over MCP.
+> En cosy social-VR-prototyp för Quest 3 — byggd uteslutande som tunna vertikala slices via Claude Code som styr Unity Editor över MCP.
 
-> The project started life as `unity-mcp-lab` — a sandbox for driving the Unity Editor through Claude Code over MCP. The first artefact that came out of it was the `CampfireRoom` scene, which evolved into the product `CampfireVR`. The repo, folder, and product are now all `CampfireVR`. A couple of identifiers (the Android package id `com.unitymcplab.campfireroom` and the main scene file `CampfireRoom.unity`) are intentionally kept on the old names — see [docs/project-rename-notes.md](docs/project-rename-notes.md) for the reasoning.
+<!-- TODO: screenshot eller GIF. Förslag (i ordning av effekt):
+     1. Quest 3 in-VR shot av campfire-scenen (kräver capture från headset)
+     2. Unity Editor screenshot av CampfireRoom-scenen
+     3. Bara arkitekturdiagrammet nedan visualiserat -->
 
-## Vision
+Två personer möts i VR, sitter vid en lågpoly-lägereld och pratar. Inget mer. Det är slutmålet. Repot börjar som *AI ↔ Editor-länken* och växer en verifierbar slice i taget mot det målet.
 
-Two people meet in VR, sit by a low-poly campfire, and talk. Nothing more.
+Sittande, lågpoly, mysigt. Quest 3 standalone. Inga avancerade hand-interaktioner. Allt utöver kärnan är medvetet separata slices.
 
-The repo starts as the AI ↔ Editor link and grows one verifiable slice at a time toward that goal — Quest 3 standalone, seated, low-poly, cozy. See [docs/vision.md](docs/vision.md) for the longer version.
+## Vad detta repo visar
 
-## Current MVP
+- **AI driver okänd domän via slice-disciplin** — VR/Unity är *inte* min hemmaplan. Repot är beviset att man kan ta sig in i en obekant domän genom att hålla strikt slice-storlek + verifierbara capabilities.
+- **Verifierad capabilities-checklista** — varje rad är "fungerar idag", inte "planerat". Förstör hype, bygger trovärdighet.
+- **AI ↔ Editor via MCP är en infrastrukturlösning, inte en feature** — visar systemtänkande: rätt limma ihop redan, sen iterera på toppen.
+- **Vision som styrning, inte som leverans** — `docs/vision.md` finns, men varje slice får bara bevisa en sak (head-tracking, eller XR-input, eller multiplayer-spike).
+- **Hederlig om begränsningar** — "No voice, no hands-on-network, no locomotion, no interactions. Every piece is a separate slice."
 
-`CampfireRoom` scene running standalone on Quest 3:
+För arkitektur, capabilities-status och setup: se nedan.
 
-- Night-time campfire room (ground, logs, flickering flame, point-light glow, dark navy ambient).
-- Seated player rig at `PlayerSlot_A` facing the fire, with explicit camera offset for sitting eye height.
-- Head tracking via HMD, hand placeholders via tracked Quest controllers, trigger feedback.
-- A second placeholder slot (`PlayerSlot_B`) that subtly looks at the fire.
-- Minimal LAN multiplayer spike that synchronises a remote player's head pose between two Quests (or Quest + Editor).
-
-No voice, no hands-on-network, no locomotion, no interactions. Every piece is a separate slice.
+---
 
 ## Verified capabilities
 
