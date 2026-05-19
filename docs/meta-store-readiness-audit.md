@@ -3,7 +3,7 @@ title: Meta Horizon Store readiness audit (App Lab / Early Access track)
 description: Gap analysis comparing CampfireVR's current state against Meta's current submission requirements for an Early Access (formerly App Lab) release. Investigation-only.
 category: meta
 status: stable
-last_updated: 2026-05-19
+last_updated: 2026-05-19 (Slice 1 fix: target SDK pinned)
 sections:
   - Context and scope
   - What changed since "App Lab"
@@ -55,7 +55,7 @@ Audit against each category. Status legend: **PASS** = meets the bar / **GAP** =
 
 | Requirement | Current | Status |
 |---|---|---|
-| `targetSdkVersion` >= 34 (Android 14, mandatory for new app entries created on/after 2026-03-01) | `0` ("auto" — resolves to highest SDK Unity finds installed; unverified at runtime) | **GAP** — pin explicitly to 34, don't trust auto. |
+| `targetSdkVersion` >= 34 (Android 14, mandatory for new app entries created on/after 2026-03-01) | ~~`0` ("auto" — resolves to highest SDK Unity finds installed; unverified at runtime)~~ → `34` (pinned) | ~~**GAP** — pin explicitly to 34, don't trust auto.~~ **PASS** [updated: app-lab-compliance-sprint Slice 1] |
 | `minSdkVersion` >= 29 (Quest minimum) | `29` | **PASS** |
 | 64-bit only (`arm64-v8a`) | `AndroidTargetArchitectures: 2` (= ARM64-only) | **PASS** |
 | IL2CPP scripting backend | Set in `QuestBuildSetup.cs` (`ScriptingImplementation.IL2CPP`) | **PASS** |
@@ -123,7 +123,7 @@ In rough size order:
 1. **Release-signing keystore** — generate via `keytool`, configure in `ProjectSettings → Publishing Settings`, store the keystore file outside the repo, document recovery (lose the keystore = lose the ability to upgrade the app on existing installs, permanent). ~30 min.
 2. **App icon + store-asset bundle** — 8 PNGs + 1 MP4 trailer + 1 trailer cover. Realistic timing: 1–2 evenings if we already have a visual identity for CampfireVR; longer if we're starting cold. The screenshots and trailer should be shot from the actual app — needs a stable two-player session for any non-solo scenes.
 3. **Privacy policy hosted at a stable HTTPS URL** — minimum content: org name, app name, what data we process (voice audio via Photon, Relay metadata via Unity, local debug logs that never leave the device unless tester opts in), purpose, retention, deletion request path, contact. GitHub Pages on the `cola500/CampfireVR` repo is the cheapest hosting. ~1 hour to write + publish.
-4. **Pin `targetSdkVersion = 34`** — `QuestBuildSetup.cs` currently uses `AndroidSdkVersions.AndroidApiLevelAuto`. Change to `AndroidSdkVersions.AndroidApiLevel34` (or whatever the current Unity enum is). ~5 min + a build to verify.
+4. ~~**Pin `targetSdkVersion = 34`** — `QuestBuildSetup.cs` currently uses `AndroidSdkVersions.AndroidApiLevelAuto`. Change to `AndroidSdkVersions.AndroidApiLevel34` (or whatever the current Unity enum is). ~5 min + a build to verify.~~ **Fixed** [updated: app-lab-compliance-sprint Slice 1].
 5. **IARC rating + age self-cert + comfort rating** — dashboard questionnaires, no work in the project itself. Likely 30 min including reading IARC's questions.
 6. **App description + supported devices declaration** — dashboard. ~1 hour.
 

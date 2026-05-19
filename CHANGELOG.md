@@ -17,6 +17,7 @@ Tone is "indie dev's notes for the friend testing the build" — not release cer
 ### Changed
 - **Build artefacts now versioned**. `./scripts/build-quest.sh` writes `Builds/CampfireVR-<version>-<YYYYMMDD-HHMM>.apk` (kept forever) and updates `Builds/CampfireVR-latest.apk` (convenience pointer). Version tag is resolved from CHANGELOG → `bundleVersion` → `v0.1.0` fallback. `--install-only` defaults to `CampfireVR-latest.apk`; new `--apk PATH` flag installs a specific older versioned build. Old `CampfireVR-remote-fika-test-v0.1.apk` filename is retired (used internally as a temp build path).
 - **Friend package includes BUILD-INFO.json**. `docs/release-process.md` step 4 now copies `build-info.json` into the dist zip as `BUILD-INFO.json` and shows a Python snippet that synthesises a short `RELEASE-NOTES.md` from it. Testers can identify their build at a glance without launching the headset.
+- **Android target SDK pinned to API 34**. `QuestBuildSetup.cs` previously set `targetSdkVersion = AndroidApiLevelAuto`, which deferred to whichever Android SDK platform Unity happened to find installed — manifest values could silently drift across machines. Now hard-pinned to `AndroidApiLevel34`. Required for Meta Horizon Store / App Lab submissions created on/after 2026-03-01. Verified post-build via `aapt2 dump badging` (App Lab compliance sprint Slice 1, `docs/app-lab-compliance-sprint.md`).
 
 ### Fixed
 

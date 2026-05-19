@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19
+last_updated: 2026-05-19 (Slice 1 landed)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -50,7 +50,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 
 | # | Slice | Complexity | Status | Notes |
 |---|---|---|---|---|
-| 1 | Android target SDK | S (~1 h) | TODO | Cheapest first move; pure config + build verify. |
+| 1 | Android target SDK | S (~1 h) | DONE | Pinned to API 34; verified via `aapt2 dump badging`. |
 | 2 | Release signing keystore | S (~2 h) | TODO | Includes documentation + .gitignore guards. |
 | 3 | versionCode + versionName automation | S (~2 h) | TODO | Pairs naturally with Slice 2 (both build-pipeline). |
 | 4 | Focus / pause / resume handling | M (~3 h) | TODO | New runtime script; needs headset verification. |
@@ -64,10 +64,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 1 — Android target SDK
 
-**Status:** TODO
+**Status:** DONE (2026-05-19)
 **Complexity:** S (~1 h including build verification)
 **Depends on:** nothing
 **Blocks:** any future submission once Meta's 2026-03-01 deadline applies.
+
+**Landed:** `QuestBuildSetup.cs` `targetSdkVersion` pinned to `AndroidApiLevel34`; `ProjectSettings.asset:178` `AndroidTargetSdkVersion: 0 → 34`. Verified via `aapt2 dump badging` on a fresh `./scripts/build-quest.sh` output: `targetSdkVersion: '34'`, `compileSdkVersion: '34'`, `platformBuildVersionName: '14'`.
 
 **Goal:** Pin `targetSdkVersion` to API 34 explicitly so we don't depend on whichever Android SDK platform Unity happens to find installed.
 

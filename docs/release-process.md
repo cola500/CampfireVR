@@ -101,6 +101,8 @@ Takes ~1 min warm, ~5–10 min if `Library/` is cold. Each successful build prod
 
 The version segment comes from step 2 above — the first `## [v…]` heading in `CHANGELOG.md`. So bumping the changelog heading before the build automatically tags the resulting APK. (If CHANGELOG can't be parsed, the script falls back to `bundleVersion` from `ProjectSettings.asset`, then to `v0.1.0`.)
 
+The APK manifest declares `targetSdkVersion=34` (Android 14) and `minSdkVersion=29` — pinned explicitly in `QuestBuildSetup.cs` rather than left on `AndroidApiLevelAuto`, so the value can't silently drift across machines that have different Android SDK platforms installed. Required for Meta Horizon Store / App Lab submissions since 2026-03-01. Verify post-build with `aapt2 dump badging Builds/CampfireVR-latest.apk | grep targetSdk`.
+
 ### Build metadata baked into every APK
 
 Before Unity batchmode runs, the script writes `UnityProject/Assets/Resources/build-info.json` capturing the exact identity of this build:

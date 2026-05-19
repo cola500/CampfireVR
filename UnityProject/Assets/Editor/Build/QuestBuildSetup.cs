@@ -22,7 +22,12 @@ public static class QuestBuildSetup
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.SetApiCompatibilityLevel(ng, ApiCompatibilityLevel.NET_Standard);
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel29;
-        PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
+        // Pin target SDK to API 34 (Android 14). Meta Horizon Store / App
+        // Lab requires >=34 for new app entries created on/after 2026-03-01.
+        // AndroidApiLevelAuto defers to whichever SDK platform Unity finds
+        // installed, so the manifest's targetSdkVersion could silently drift
+        // across machines. See docs/app-lab-compliance-sprint.md Slice 1.
+        PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel34;
         PlayerSettings.colorSpace = ColorSpace.Linear;
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[]
