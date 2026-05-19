@@ -3,7 +3,7 @@ title: Meta Horizon Store readiness audit (App Lab / Early Access track)
 description: Gap analysis comparing CampfireVR's current state against Meta's current submission requirements for an Early Access (formerly App Lab) release. Investigation-only.
 category: meta
 status: stable
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 7 landed)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 5 + 7 landed)
 sections:
   - Context and scope
   - What changed since "App Lab"
@@ -80,7 +80,7 @@ Audit against each category. Status legend: **PASS** = meets the bar / **GAP** =
 | Requirement | Current | Status |
 |---|---|---|
 | Maintain declared refresh rate (72 / 90 / 120 Hz, Quest 3 default 90) | Not declared explicitly; current scene is low-poly and well within budget on warm runs, but no profiled measurements committed. | **UNKNOWN** — needs frame-time capture during a connected two-player session (worst case: head + hand pose sync + Photon Voice + Relay traffic). |
-| Foveated rendering / fixed foveated rendering enabled | Not configured. | **GAP** — Oculus loader supports it; trivial enable, real perf wins. |
+| Foveated rendering / fixed foveated rendering enabled | ~~Not configured.~~ → `OculusSettings.asset` `FoveatedRenderingMethod: 1` (Fixed FFR). | ~~**GAP**~~ **PASS** [updated: app-lab-compliance-sprint Slice 5] |
 | App labelled with target refresh rate | Not set. | **GAP** — declare in dashboard during submission, decide 72 vs 90 first. |
 
 ### Store metadata (none exists yet)
@@ -131,7 +131,7 @@ In rough size order:
 
 7. ~~**`OnApplicationFocus(false)` handler** in NetworkBootstrap (or a new SystemFocusGuard MonoBehaviour) — pause input reads + hide remote hand visuals while the system menu is open. Reduces "ghost input fires while user is in the Meta menu" risk. ~1 hour.~~ **Done — voice path** [updated: app-lab-compliance-sprint Slice 4] — `AppLifecycle` mutes Photon Voice transmission on focus loss. Input read + remote hand visuals still un-suspended; revisit if headset testing flags issues.
 8. ~~**`bundleVersionCode` auto-increment in the build pipeline** — extend `scripts/build-quest.sh` or `QuestBuildAPK.cs` to bump the code based on git commit count or a monotonic stamp. Meta only requires that it strictly increases across Store uploads — Editor-side iteration builds don't need it. ~30 min.~~ **Done** [updated: app-lab-compliance-sprint Slice 3] — `VersionCodeGuard` + `scripts/build-quest.sh` automate this end-to-end with no on-disk drift.
-9. **Foveated rendering** — flip on in Oculus loader settings; trivial perf win. ~5 min.
+9. ~~**Foveated rendering** — flip on in Oculus loader settings; trivial perf win. ~5 min.~~ **Done** [updated: app-lab-compliance-sprint Slice 5] — `FoveatedRenderingMethod: 1` in `OculusSettings.asset`.
 10. **Frame-time capture during a real two-player session** — confirm we're locked at 90 Hz with no missed frames during a 5-min connected session including voice + remote head/hand sync. Use OVRMetricsTool or `adb logcat` for the headset's perf overlay. ~1 hour.
 11. **30-minute soak test on two physical Quests** — equivalent to a Remote Fika session. Watch for memory growth in `adb shell dumpsys meminfo` and any thermal throttling.
 

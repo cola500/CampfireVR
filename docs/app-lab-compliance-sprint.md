@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 7 landed; keystore generation + headset validation pending Johan-side)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 5 + 7 landed; keystore generation + headset validation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -54,7 +54,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 | 2 | Release signing keystore | S (~2 h) | DONE (code+docs) | `ReleaseSigningGuard` + env-var wiring + `docs/release-keystore.md` shipped. Actual `keytool -genkey` + env var export is a manual follow-up on Johan's machine. |
 | 3 | versionCode + versionName automation | S (~2 h) | DONE | `VersionCodeGuard` applies `git rev-list --count HEAD` per build; restores baseline post-build so disk stays clean. Verified versionCode=103 in APK manifest, ProjectSettings.asset unchanged. |
 | 4 | Focus / pause / resume handling | M (~3 h) | DONE (code) | `AppLifecycle` + `VoiceBootstrap.SetTransmitEnabled`. Voice mic mute on focus loss, restore on regain. Headset verification of Meta-menu open/close pending. |
-| 5 | Performance readiness | M (~3 h) | TODO | Foveated rendering + Quest 3 target flag + checklist. |
+| 5 | Performance readiness | M (~3 h) | DONE (config+docs) | FFR enabled, Quest 3 + 3S target flags fixed, `docs/performance-checklist.md` shipped. Frame-time + soak measurement pending headset session. |
 | 6 | Soak test checklist | S (~2 h) | TODO | Documentation-only; depends on slices 4 + 5 to land first. |
 | 7 | Privacy / data handling draft | S (~1.5 h) | DONE (draft) | `docs/privacy-policy-draft.md` shipped. 10 open verification questions tracked at the bottom; needs each resolved before becoming a hosted policy. |
 
@@ -189,10 +189,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 5 — Performance readiness
 
-**Status:** TODO
+**Status:** DONE (config + docs, 2026-05-19) — actual frame-time measurement + soak test pending headset session.
 **Complexity:** M (~3 h)
 **Depends on:** nothing critical, but pairs nicely with Slice 1 (both touch build config).
 **Blocks:** VRC.Quest.Performance — apps must hit declared refresh rate without drops.
+
+**Landed:** `OculusSettings.asset` config fixes — `TargetQuest3: 0 → 1`, `TargetQuest3S: 0 → 1` (correcting drift; the project declared Quest 2 support only despite README naming Quest 3 as primary target). `TargetQuest2: 1` kept for older-hardware compatibility while the scene's GPU budget allows it; `TargetQuestPro: 0` kept (discontinued device, not in our tester pool). `FoveatedRenderingMethod: 0 → 1` enables Fixed Foveated Rendering — typical 10–30 % GPU saving on Quest 3 with no perceptible quality loss for our world-space tutorial panel. New `docs/performance-checklist.md` (~160 lines) covers: how to enable the Oculus perf overlay (built-in `setprop debug.oculus.metricsOverlay 1` plus OVRMetricsTool option), what metrics to watch (App GPU/CPU time, missed frames, memory, thermal), pass / warn / fail criteria for a 5-min connected session, common red flags, and a per-item risk table for the 38 pine trees + oak wind + dog SkinnedMesh + FireLight shadows + grass overdraw. Conservative deferrals (`SubsampledLayout`, `SpaceWarp`, `LateLatching`) documented with the reasoning for each. Verified by `./scripts/build-quest.sh` — build clean, all guards fire, no manifest changes. Frame-time measurement still requires Johan plugged into a Quest with the perf overlay running.
 
 **Goal:** Flip the obvious perf levers; declare the right headset targets; produce a manual frame-time measurement workflow we can re-run before every shared build.
 
