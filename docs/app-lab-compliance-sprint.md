@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 5 + 7 landed; keystore generation + headset validation pending Johan-side)
+last_updated: 2026-05-19 (all 7 slices landed; keystore generation + headset validation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -55,7 +55,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 | 3 | versionCode + versionName automation | S (~2 h) | DONE | `VersionCodeGuard` applies `git rev-list --count HEAD` per build; restores baseline post-build so disk stays clean. Verified versionCode=103 in APK manifest, ProjectSettings.asset unchanged. |
 | 4 | Focus / pause / resume handling | M (~3 h) | DONE (code) | `AppLifecycle` + `VoiceBootstrap.SetTransmitEnabled`. Voice mic mute on focus loss, restore on regain. Headset verification of Meta-menu open/close pending. |
 | 5 | Performance readiness | M (~3 h) | DONE (config+docs) | FFR enabled, Quest 3 + 3S target flags fixed, `docs/performance-checklist.md` shipped. Frame-time + soak measurement pending headset session. |
-| 6 | Soak test checklist | S (~2 h) | TODO | Documentation-only; depends on slices 4 + 5 to land first. |
+| 6 | Soak test checklist | S (~2 h) | DONE | `docs/soak-test-checklist.md` + `scripts/create-soak-test-report.sh`. Repeatable 30-min two-headset validation procedure. |
 | 7 | Privacy / data handling draft | S (~1.5 h) | DONE (draft) | `docs/privacy-policy-draft.md` shipped. 10 open verification questions tracked at the bottom; needs each resolved before becoming a hosted policy. |
 
 Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day. All estimates assume Editor + Quest are healthy.
@@ -231,10 +231,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 6 — Soak test checklist
 
-**Status:** TODO
+**Status:** DONE (2026-05-19)
 **Complexity:** S (~2 h, all documentation)
 **Depends on:** Slices 4 + 5 should land first so the checklist reflects post-fix behaviour.
 **Blocks:** confidence in submission — Meta's review team runs through every flow they can find; we should run through them first.
+
+**Landed:** New `docs/soak-test-checklist.md` (~330 lines) covering Goals → Pre-test setup → 5-min smoke test → 30-min soak test (timed five-block protocol: idle, focus loss stress, stop/rejoin, extended idle, stress, calm) → Performance observations → Failure conditions → Pass criteria → Log collection → Post-test notes → Regression checklist. Includes per-block checkboxes that map to specific Slice 4 + 5 + Slice 2 (signing) behaviours. New optional helper `scripts/create-soak-test-report.sh` scaffolds `quest-logs/soak-tests/<stamp>/` with a `BUILD-INFO.json` snapshot of the build under test plus a `NOTES.md` template pre-filled with the pass-criteria checklist and per-block observation prompts; refuses to overwrite same-minute runs (exit 3, use `--label` to disambiguate). Cross-references `docs/performance-checklist.md` (Slice 5), `docs/debug-logging.md`, `docs/remote-fika-test-debug-checklist.md` (existing companion doc for social sessions), and `scripts/pull-quest-logs.sh`. The "Regression checklist" section gives a ~10-bullet floor that any future slice should pass before friend testing. Verified by running the helper script end-to-end: produces folder, BUILD-INFO snapshot, populated NOTES template; refuses overwrite; clean teardown.
 
 **Goal:** A repeatable two-headset, 30-minute checklist that exercises every user-visible feature and produces a clean debug-log archive for retrospective analysis.
 
