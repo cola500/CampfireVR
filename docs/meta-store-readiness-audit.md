@@ -3,7 +3,7 @@ title: Meta Horizon Store readiness audit (App Lab / Early Access track)
 description: Gap analysis comparing CampfireVR's current state against Meta's current submission requirements for an Early Access (formerly App Lab) release. Investigation-only.
 category: meta
 status: stable
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 landed)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 7 landed)
 sections:
   - Context and scope
   - What changed since "App Lab"
@@ -111,7 +111,7 @@ Audit against each category. Status legend: **PASS** = meets the bar / **GAP** =
 
 | Requirement | Current | Status |
 |---|---|---|
-| Privacy policy URL (HTTPS, publicly accessible, names org + app, describes processing) | Not exists. The only "privacy" string in the repo is a one-line note in `debug-logging.md` about local log storage. | **BLOCKER** — voice chat + Photon servers + Unity Relay all trigger this. |
+| Privacy policy URL (HTTPS, publicly accessible, names org + app, describes processing) | `docs/privacy-policy-draft.md` exists with full content + 10 open verification questions. **Still needs hosting + the 10 questions answered before submission.** | **PARTIAL** [updated: app-lab-compliance-sprint Slice 7] — draft complete; hosting is a separate marketing-sprint task. |
 | Data Use form in dashboard | Not done. Must disclose: voice audio (Photon Voice 2), Relay alloc metadata (Unity Services), local debug logs (don't leave the headset unless tester sends them). | **BLOCKER** |
 | Voice chat moderation / reporting | No in-app report flow exists. For 13+ self-cert with two-player private rooms, Meta does not mandate moderation tooling but app policy still requires response to abuse reports. | **GAP** (not blocker for 13+ self-cert with closed-room model). |
 | COPPA-compliant flows for under-13 users | We do not support under-13 — 13+ self-cert sidesteps this. | **PASS** (by virtue of opting out). |
@@ -122,7 +122,7 @@ In rough size order:
 
 1. ~~**Release-signing keystore** — generate via `keytool`, configure in `ProjectSettings → Publishing Settings`, store the keystore file outside the repo, document recovery (lose the keystore = lose the ability to upgrade the app on existing installs, permanent). ~30 min.~~ **Code path ready** [updated: app-lab-compliance-sprint Slice 2] — `ReleaseSigningGuard` reads `CAMPFIREVR_KEYSTORE_*` env vars; remaining work is the one-time keystore generation + backup per `docs/release-keystore.md`.
 2. **App icon + store-asset bundle** — 8 PNGs + 1 MP4 trailer + 1 trailer cover. Realistic timing: 1–2 evenings if we already have a visual identity for CampfireVR; longer if we're starting cold. The screenshots and trailer should be shot from the actual app — needs a stable two-player session for any non-solo scenes.
-3. **Privacy policy hosted at a stable HTTPS URL** — minimum content: org name, app name, what data we process (voice audio via Photon, Relay metadata via Unity, local debug logs that never leave the device unless tester opts in), purpose, retention, deletion request path, contact. GitHub Pages on the `cola500/CampfireVR` repo is the cheapest hosting. ~1 hour to write + publish.
+3. ~~**Privacy policy hosted at a stable HTTPS URL** — minimum content: org name, app name, what data we process (voice audio via Photon, Relay metadata via Unity, local debug logs that never leave the device unless tester opts in), purpose, retention, deletion request path, contact. GitHub Pages on the `cola500/CampfireVR` repo is the cheapest hosting. ~1 hour to write + publish.~~ **Draft complete** [updated: app-lab-compliance-sprint Slice 7] — `docs/privacy-policy-draft.md` exists with all data paths documented + 10 open verification questions. Hosting remains a follow-up.
 4. ~~**Pin `targetSdkVersion = 34`** — `QuestBuildSetup.cs` currently uses `AndroidSdkVersions.AndroidApiLevelAuto`. Change to `AndroidSdkVersions.AndroidApiLevel34` (or whatever the current Unity enum is). ~5 min + a build to verify.~~ **Fixed** [updated: app-lab-compliance-sprint Slice 1].
 5. **IARC rating + age self-cert + comfort rating** — dashboard questionnaires, no work in the project itself. Likely 30 min including reading IARC's questions.
 6. **App description + supported devices declaration** — dashboard. ~1 hour.

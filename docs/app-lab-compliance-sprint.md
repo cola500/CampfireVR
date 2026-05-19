@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 landed; keystore generation pending Johan-side)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 7 landed; keystore generation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -56,7 +56,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 | 4 | Focus / pause / resume handling | M (~3 h) | TODO | New runtime script; needs headset verification. |
 | 5 | Performance readiness | M (~3 h) | TODO | Foveated rendering + Quest 3 target flag + checklist. |
 | 6 | Soak test checklist | S (~2 h) | TODO | Documentation-only; depends on slices 4 + 5 to land first. |
-| 7 | Privacy / data handling draft | S (~1.5 h) | TODO | Independent; can run any time. |
+| 7 | Privacy / data handling draft | S (~1.5 h) | DONE (draft) | `docs/privacy-policy-draft.md` shipped. 10 open verification questions tracked at the bottom; needs each resolved before becoming a hosted policy. |
 
 Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day. All estimates assume Editor + Quest are healthy.
 
@@ -260,10 +260,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 7 — Privacy / data handling draft
 
-**Status:** TODO
+**Status:** DONE (draft, 2026-05-19) — hosting + legal review are future steps tracked in the draft's own "Open questions" section.
 **Complexity:** S (~1.5 h)
 **Depends on:** nothing
 **Blocks:** dashboard's Privacy Policy URL field, once hosted (out of scope for this sprint).
+
+**Landed:** New `docs/privacy-policy-draft.md` (~200 lines) describing every data path the app actually has — voice (Photon Voice 2), session brokering (Unity Auth + Unity Relay), Photon room property `rc` for Relay-code handoff, NGO position sync, local debug logs. Explicit "what we deliberately do NOT collect" list verified by grep (no analytics, no PlayerPrefs, no advertising IDs, no location, no camera/passthrough, no biometric, no friends list). Notes the subtle nuance that Unity's anonymous auth still creates a persistent PlayerId per install — flagged in the draft rather than hidden. Closes with 10 open questions that must be answered before this becomes a hosted policy (Photon/Unity retention specifics, Android manifest permission audit, hosting URL, legal review). Targets 13+ age-group self-certification to stay out of COPPA scope.
 
 **Goal:** A plain-language privacy policy draft that names every data type CampfireVR touches and where it goes. Stored under version control so future revisions are diffable.
 
