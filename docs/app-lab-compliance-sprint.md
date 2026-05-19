@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slice 1 landed)
+last_updated: 2026-05-19 (Slices 1 + 2 landed; keystore generation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -51,7 +51,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 | # | Slice | Complexity | Status | Notes |
 |---|---|---|---|---|
 | 1 | Android target SDK | S (~1 h) | DONE | Pinned to API 34; verified via `aapt2 dump badging`. |
-| 2 | Release signing keystore | S (~2 h) | TODO | Includes documentation + .gitignore guards. |
+| 2 | Release signing keystore | S (~2 h) | DONE (code+docs) | `ReleaseSigningGuard` + env-var wiring + `docs/release-keystore.md` shipped. Actual `keytool -genkey` + env var export is a manual follow-up on Johan's machine. |
 | 3 | versionCode + versionName automation | S (~2 h) | TODO | Pairs naturally with Slice 2 (both build-pipeline). |
 | 4 | Focus / pause / resume handling | M (~3 h) | TODO | New runtime script; needs headset verification. |
 | 5 | Performance readiness | M (~3 h) | TODO | Foveated rendering + Quest 3 target flag + checklist. |
@@ -92,10 +92,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 2 — Release signing keystore
 
-**Status:** TODO
+**Status:** DONE — code + docs landed 2026-05-19. Keystore generation (`keytool -genkey`) + env var export pending Johan's manual one-time setup; see `docs/release-keystore.md`.
 **Complexity:** S (~2 h including the documentation)
 **Depends on:** nothing
 **Blocks:** all submissions — Meta refuses debug-signed APKs.
+
+**Landed:** New `Assets/Editor/Build/ReleaseSigningGuard.cs` (`IPreprocessBuildWithReport`, callbackOrder=100) reads four env vars (`CAMPFIREVR_KEYSTORE_PATH/PASS`, `CAMPFIREVR_KEY_ALIAS/PASS`) and applies them to `PlayerSettings.Android` in memory before each Android build. Falls back with a clear warning if env vars aren't set; ProjectSettings.asset on disk never sees keystore values. `.gitignore` adds `*.keystore`, `*.jks`, `CampfireVR-release.*` as defensive guards. `docs/release-keystore.md` (new) covers keytool generation, backup strategy (two copies minimum, never to cloud-without-encryption), env var wiring, and `apksigner verify --print-certs` verification. Verified by running `./scripts/build-quest.sh` with env vars unset — log shows expected `[ReleaseSigningGuard] No CAMPFIREVR_KEYSTORE_PATH set` warning, build still succeeds with debug keystore (sideload only).
 
 **Goal:** Replace the implicit Unity debug keystore with a real release keystore that's documented, backed up, and never committed to git.
 

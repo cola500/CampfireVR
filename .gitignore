@@ -155,3 +155,11 @@ CLAUDE.md
 # MCP server config (contains absolute path + per-machine package hash; use .mcp.example.json)
 .mcp.json
 .mcp.json.bak
+
+# Android release-signing keystore — NEVER commit. Generate locally per
+# docs/release-keystore.md and keep the file outside the repo
+# (suggested location: ~/.keystores/CampfireVR-release.keystore). The
+# defensive ignore patterns below catch accidental drag-and-drops.
+*.keystore
+*.jks
+CampfireVR-release.*
