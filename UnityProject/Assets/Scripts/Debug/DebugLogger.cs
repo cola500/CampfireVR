@@ -118,6 +118,7 @@ public class DebugLogger : MonoBehaviour
     private class BuildInfo
     {
         public string version;
+        public int versionCode;
         public string buildTime;
         public string gitCommit;
         public string gitCommitLong;
@@ -131,6 +132,7 @@ public class DebugLogger : MonoBehaviour
     private void WriteHeader()
     {
         string buildVersion = "unknown";
+        int buildVersionCode = 0;
         string buildTime = "unknown";
         string gitCommit = "unknown";
         string gitBranch = "unknown";
@@ -145,12 +147,13 @@ public class DebugLogger : MonoBehaviour
                 var info = JsonUtility.FromJson<BuildInfo>(infoTxt.text);
                 if (info != null)
                 {
-                    buildVersion = string.IsNullOrEmpty(info.version) ? buildVersion : info.version;
-                    buildTime    = string.IsNullOrEmpty(info.buildTime) ? buildTime   : info.buildTime;
-                    gitCommit    = string.IsNullOrEmpty(info.gitCommit) ? gitCommit   : info.gitCommit;
-                    gitBranch    = string.IsNullOrEmpty(info.gitBranch) ? gitBranch   : info.gitBranch;
-                    gitDirty     = info.gitDirty;
-                    apkName      = string.IsNullOrEmpty(info.apkName) ? apkName       : info.apkName;
+                    buildVersion     = string.IsNullOrEmpty(info.version) ? buildVersion : info.version;
+                    buildVersionCode = info.versionCode;
+                    buildTime        = string.IsNullOrEmpty(info.buildTime) ? buildTime   : info.buildTime;
+                    gitCommit        = string.IsNullOrEmpty(info.gitCommit) ? gitCommit   : info.gitCommit;
+                    gitBranch        = string.IsNullOrEmpty(info.gitBranch) ? gitBranch   : info.gitBranch;
+                    gitDirty         = info.gitDirty;
+                    apkName          = string.IsNullOrEmpty(info.apkName) ? apkName       : info.apkName;
                 }
             }
         }
@@ -169,6 +172,7 @@ public class DebugLogger : MonoBehaviour
             ("install_mode", Application.installMode.ToString()),
             ("log_file", Path.GetFileName(_logFilePath)),
             ("build_version", buildVersion),
+            ("build_version_code", buildVersionCode),
             ("build_time", buildTime),
             ("git_commit", gitCommit),
             ("git_branch", gitBranch),

@@ -122,7 +122,28 @@ resolve_version() {
     echo "$v"
 }
 
+# Resolve the Android bundleVersionCode for this build. Must strictly
+# increase on every Meta Horizon Store / App Lab upload — uploading the
+# same value twice is rejected.
+#
+# `git rev-list --count HEAD` is a free monotonic counter: it increments
+# with every commit on main and never decreases. Falls back to a Unix-epoch
+# minute (modulo 32-bit signed int range) for unusual cases like a shallow
+# clone where commit-counting isn't available.
+resolve_version_code() {
+    local n
+    n=$( (cd "$REPO_ROOT" && git rev-list --count HEAD 2>/dev/null) || true)
+    if [[ -z "$n" || ! "$n" =~ ^[0-9]+$ || "$n" -lt 1 ]]; then
+        # Fallback: minutes since 2026-01-01 UTC. Strictly increasing,
+        # fits in 31 bits for ~4000 years.
+        n=$(( ($(date -u +%s) - 1767225600) / 60 ))
+        if [[ "$n" -lt 1 ]]; then n=1; fi
+    fi
+    echo "$n"
+}
+
 VERSION=""    # resolved lazily, after arg parse, only if needed
+VERSION_CODE=""
 STAMP=""
 
 # Build-info JSON metadata written into Resources/ so DebugLogger can read it
@@ -185,6 +206,7 @@ generate_build_info() {
     cat > "$BUILD_INFO_JSON" <<EOF
 {
   "version":           "${VERSION}",
+  "versionCode":       ${VERSION_CODE},
   "buildTime":         "${build_time}",
   "gitCommit":         "${short_commit}",
   "gitCommitLong":     "${commit}",
@@ -196,7 +218,7 @@ generate_build_info() {
 }
 EOF
 
-    echo "[build-info] ${VERSION} · ${short_commit}$([ "$dirty" = "true" ] && echo "-dirty") · ${branch} · ${build_time}"
+    echo "[build-info] ${VERSION} (code ${VERSION_CODE}) · ${short_commit}$([ "$dirty" = "true" ] && echo "-dirty") · ${branch} · ${build_time}"
     if [[ "$dirty" == "true" ]]; then
         echo "[build-info] ⚠ Repo is dirty — uncommitted changes are baked into this APK." >&2
     fi
@@ -270,6 +292,7 @@ fi
 # Compute the versioned-build filename only when we'll actually build.
 if [[ $SKIP_BUILD -eq 0 ]]; then
     VERSION="$(resolve_version)"
+    VERSION_CODE="$(resolve_version_code)"
     STAMP="$(date +%Y%m%d-%H%M)"
 fi
 VERSIONED_APK="${OUTPUT_DIR}/CampfireVR-${VERSION}-${STAMP}.apk"
@@ -288,7 +311,7 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     fi
 
     mkdir -p "$OUTPUT_DIR"
-    echo "[build] Unity ${UNITY_VERSION} · version tag = ${VERSION} · stamp = ${STAMP}"
+    echo "[build] Unity ${UNITY_VERSION} · version tag = ${VERSION} (code ${VERSION_CODE}) · stamp = ${STAMP}"
     echo "[build] (Close the Editor first if CampfireVR is open in the GUI.)"
 
     # Generate build-info.json BEFORE Unity batchmode so it gets imported as
@@ -301,6 +324,11 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     # is the only reliable signal.
     PREV_MTIME=0
     [[ -f "$BUILD_TEMP_APK" ]] && PREV_MTIME=$(stat -f %m "$BUILD_TEMP_APK")
+
+    # Pass the resolved versionCode + the keystore env vars (already in our
+    # shell env if Johan has them in ~/.zshrc) through to Unity batchmode.
+    # VersionCodeGuard + ReleaseSigningGuard read these at pre-build time.
+    export CAMPFIREVR_VERSION_CODE="$VERSION_CODE"
 
     "$UNITY" \
         -batchmode \

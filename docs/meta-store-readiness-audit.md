@@ -3,7 +3,7 @@ title: Meta Horizon Store readiness audit (App Lab / Early Access track)
 description: Gap analysis comparing CampfireVR's current state against Meta's current submission requirements for an Early Access (formerly App Lab) release. Investigation-only.
 category: meta
 status: stable
-last_updated: 2026-05-19 (Slices 1 + 2 code/docs landed)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 landed)
 sections:
   - Context and scope
   - What changed since "App Lab"
@@ -63,7 +63,7 @@ Audit against each category. Status legend: **PASS** = meets the bar / **GAP** =
 | Release-signed APK (not debug keystore) | Build-time env vars via `ReleaseSigningGuard.cs` (in memory only — `ProjectSettings.asset` deliberately stays at `useCustomKeystore: 0` so no secrets ever land in the committed asset). Generation + env var export still pending Johan's manual setup per `docs/release-keystore.md`. | **PARTIAL** [updated: app-lab-compliance-sprint Slice 2] — code path ready; actual keystore + secret export is a one-time manual follow-up. |
 | Linear colour space | Set in `QuestBuildSetup.cs` (`ColorSpace.Linear`) | **PASS** |
 | Vulkan + GLES3 graphics APIs | Set in `QuestBuildSetup.cs` | **PASS** |
-| `bundleVersionCode` increments per submission | Still `1` (never bumped) | **GAP** — needs to increment for each Store upload; current build pipeline doesn't auto-bump. |
+| `bundleVersionCode` increments per submission | ~~Still `1` (never bumped)~~ → `VersionCodeGuard` injects `git rev-list --count HEAD` per build (currently `103`); ProjectSettings.asset stays at baseline 1 on disk. | ~~**GAP**~~ **PASS** [updated: app-lab-compliance-sprint Slice 3] |
 
 ### Functional VRCs (subset most likely to hit us)
 
@@ -130,7 +130,7 @@ In rough size order:
 ## Recommended (should fix before submission)
 
 7. **`OnApplicationFocus(false)` handler** in NetworkBootstrap (or a new SystemFocusGuard MonoBehaviour) — pause input reads + hide remote hand visuals while the system menu is open. Reduces "ghost input fires while user is in the Meta menu" risk. ~1 hour.
-8. **`bundleVersionCode` auto-increment in the build pipeline** — extend `scripts/build-quest.sh` or `QuestBuildAPK.cs` to bump the code based on git commit count or a monotonic stamp. Meta only requires that it strictly increases across Store uploads — Editor-side iteration builds don't need it. ~30 min.
+8. ~~**`bundleVersionCode` auto-increment in the build pipeline** — extend `scripts/build-quest.sh` or `QuestBuildAPK.cs` to bump the code based on git commit count or a monotonic stamp. Meta only requires that it strictly increases across Store uploads — Editor-side iteration builds don't need it. ~30 min.~~ **Done** [updated: app-lab-compliance-sprint Slice 3] — `VersionCodeGuard` + `scripts/build-quest.sh` automate this end-to-end with no on-disk drift.
 9. **Foveated rendering** — flip on in Oculus loader settings; trivial perf win. ~5 min.
 10. **Frame-time capture during a real two-player session** — confirm we're locked at 90 Hz with no missed frames during a 5-min connected session including voice + remote head/hand sync. Use OVRMetricsTool or `adb logcat` for the headset's perf overlay. ~1 hour.
 11. **30-minute soak test on two physical Quests** — equivalent to a Remote Fika session. Watch for memory growth in `adb shell dumpsys meminfo` and any thermal throttling.

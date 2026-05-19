@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slices 1 + 2 landed; keystore generation pending Johan-side)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 landed; keystore generation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -52,7 +52,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 |---|---|---|---|---|
 | 1 | Android target SDK | S (~1 h) | DONE | Pinned to API 34; verified via `aapt2 dump badging`. |
 | 2 | Release signing keystore | S (~2 h) | DONE (code+docs) | `ReleaseSigningGuard` + env-var wiring + `docs/release-keystore.md` shipped. Actual `keytool -genkey` + env var export is a manual follow-up on Johan's machine. |
-| 3 | versionCode + versionName automation | S (~2 h) | TODO | Pairs naturally with Slice 2 (both build-pipeline). |
+| 3 | versionCode + versionName automation | S (~2 h) | DONE | `VersionCodeGuard` applies `git rev-list --count HEAD` per build; restores baseline post-build so disk stays clean. Verified versionCode=103 in APK manifest, ProjectSettings.asset unchanged. |
 | 4 | Focus / pause / resume handling | M (~3 h) | TODO | New runtime script; needs headset verification. |
 | 5 | Performance readiness | M (~3 h) | TODO | Foveated rendering + Quest 3 target flag + checklist. |
 | 6 | Soak test checklist | S (~2 h) | TODO | Documentation-only; depends on slices 4 + 5 to land first. |
@@ -125,10 +125,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 3 — versionCode + versionName automation
 
-**Status:** TODO
+**Status:** DONE (2026-05-19)
 **Complexity:** S (~2 h)
 **Depends on:** Slice 2 ideally lands first (both edit the build pipeline; merging them avoids back-to-back rebuilds).
 **Blocks:** repeat Store uploads — Meta requires strictly-increasing versionCode.
+
+**Landed:** New `Assets/Editor/Build/VersionCodeGuard.cs` implements both `IPreprocessBuildWithReport` and `IPostprocessBuildWithReport` (callbackOrder=200). Pre-build: reads `CAMPFIREVR_VERSION_CODE` env var (computed by `scripts/build-quest.sh` as `git rev-list --count HEAD`), applies to `PlayerSettings.Android.bundleVersionCode`, remembers the previous value. Post-build: restores the previous value. PreloadedAssetsGuard's post-build `AssetDatabase.SaveAssets()` runs at `int.MaxValue` (i.e. after VersionCodeGuard's restore), so the on-disk asset only ever sees the baseline value. `scripts/build-quest.sh` exports the env var and bakes `versionCode` into `build-info.json`. `DebugLogger.cs` reads `info.versionCode` and stamps `build_version_code` on the `app_started` event. `scripts/package-friend-test.sh` surfaces it in README + RELEASE-NOTES. `docs/release-process.md` gets a new "Version-identity chain" subsection mapping all five places the value lives (CHANGELOG → APK filename → bundleVersion → bundleVersionCode → build-info → debug log). Verified end-to-end: APK manifest shows `versionCode='103'`, ProjectSettings.asset on disk stays at `AndroidBundleVersionCode: 1`, `git status` clean.
 
 **Goal:** Make every release build's `bundleVersionCode` strictly increase and stay aligned with the version tag in `build-info.json`, the APK filename, and the CHANGELOG.
 

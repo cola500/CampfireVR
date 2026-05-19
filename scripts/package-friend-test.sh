@@ -127,8 +127,13 @@ json_bool() {
     local key="$1"
     sed -nE "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*(true|false).*/\1/p" "$BUILD_INFO" | head -1
 }
+json_int() {
+    local key="$1"
+    sed -nE "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p" "$BUILD_INFO" | head -1
+}
 
 VERSION="$(json_str version)"
+VERSION_CODE="$(json_int versionCode)"
 APK_NAME_FROM_INFO="$(json_str apkName)"
 GIT_COMMIT="$(json_str gitCommit)"
 GIT_BRANCH="$(json_str gitBranch)"
@@ -239,12 +244,17 @@ BULLETS="$(awk '
 ' "$BUILD_INFO")"
 [[ -z "$BULLETS" ]] && BULLETS="- See CHANGELOG.md."
 
+VERSION_CODE_LINE=""
+[[ -n "$VERSION_CODE" ]] && VERSION_CODE_LINE="**Version code:** ${VERSION_CODE}
+"
+
 cat > "$STAGING_DIR/RELEASE-NOTES.md" <<EOF
 # CampfireVR — ${VERSION}
 
 **APK:** ${APK_NAME}
 **Built:** ${BUILD_TIME}
 **Commit:** ${GIT_COMMIT} on ${GIT_BRANCH}${DIRTY_NOTE}
+${VERSION_CODE_LINE}
 
 ## What's new
 
@@ -265,7 +275,7 @@ cat > "$STAGING_DIR/README.md" <<EOF
 
 Thanks for testing! This zip has everything you need to install CampfireVR on your Meta Quest 3 and join a remote campfire session.
 
-**This build:** \`${VERSION}\` · built ${BUILD_TIME} · commit ${GIT_COMMIT}${DIRTY_NOTE}
+**This build:** \`${VERSION}\` (code ${VERSION_CODE:-unset}) · built ${BUILD_TIME} · commit ${GIT_COMMIT}${DIRTY_NOTE}
 See \`RELEASE-NOTES.md\` for a one-page summary and \`CHANGELOG.md\` for the full per-version history.
 
 ## What's in here
@@ -371,7 +381,7 @@ fi
 ZIP_SIZE="$(du -h "$ZIP_PATH" | awk '{print $1}')"
 
 echo "[package] OK · ${ZIP_SIZE} · ${ZIP_PATH#"${REPO_ROOT}/"}"
-echo "[package]   build  · ${VERSION} · commit ${GIT_COMMIT} · ${BUILD_TIME}${DIRTY_NOTE}"
+echo "[package]   build  · ${VERSION} (code ${VERSION_CODE:-unset}) · commit ${GIT_COMMIT} · ${BUILD_TIME}${DIRTY_NOTE}"
 echo "[package]   apk    · ${APK_SIZE_MB} · ${APK_NAME}"
 if [[ $SKIP_SHA -eq 0 ]]; then
     APK_SHA="$(awk '{print $1}' "$STAGING_DIR/SHA256SUMS")"

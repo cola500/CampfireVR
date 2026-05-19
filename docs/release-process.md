@@ -110,6 +110,7 @@ Before Unity batchmode runs, the script writes `UnityProject/Assets/Resources/bu
 ```json
 {
   "version":          "v0.1.3-suffix",
+  "versionCode":      103,
   "buildTime":        "2026-05-16T20:27:02+0200",
   "gitCommit":        "7a56b9d",
   "gitCommitLong":    "7a56b9dbd0647ef2f95b02cb93dc4d7178b033f2",
@@ -121,7 +122,22 @@ Before Unity batchmode runs, the script writes `UnityProject/Assets/Resources/bu
 }
 ```
 
-`DebugLogger` reads this at app startup via `Resources.Load<TextAsset>("build-info")` and stamps the session log's `app_started` event with `build_version`, `build_time`, `git_commit`, `git_branch`, `git_dirty`, `apk_name`. See [debug-logging.md](debug-logging.md#build-identity-in-app_started) for the exact fields.
+`DebugLogger` reads this at app startup via `Resources.Load<TextAsset>("build-info")` and stamps the session log's `app_started` event with `build_version`, `build_version_code`, `build_time`, `git_commit`, `git_branch`, `git_dirty`, `apk_name`. See [debug-logging.md](debug-logging.md#build-identity-in-app_started) for the exact fields.
+
+#### Version-identity chain
+
+A single build's identity propagates through five places that must all agree. When a tester reports a bug, any one of these is enough to recover the exact source tree they ran:
+
+| Layer | Value | Where it lives |
+|---|---|---|
+| CHANGELOG heading | `v0.1.3-suffix` | `CHANGELOG.md`'s first `## [v…]` heading |
+| APK filename | `CampfireVR-v0.1.3-suffix-20260516-2027.apk` | `UnityProject/Builds/` (immutable, never overwritten) |
+| `bundleVersion` string | `1.0` | `ProjectSettings.asset` — only bumped for major rebrands |
+| `bundleVersionCode` integer | `103` | Computed per-build by `scripts/build-quest.sh` as `git rev-list --count HEAD`. Applied to `PlayerSettings.Android.bundleVersionCode` in memory by `VersionCodeGuard.cs` (pre-build) and restored to the committed baseline (1) post-build so `ProjectSettings.asset` on disk never drifts. Strictly-increasing — Meta requires this for Store uploads. |
+| `build-info.json` | all of the above + git SHA + dirty flag | `UnityProject/Assets/Resources/build-info.json` (gitignored, regenerated per build, included in the APK as a TextAsset) |
+| Debug log `app_started` event | same fields under `build_version`, `build_version_code`, `git_commit`, etc. | `/sdcard/Android/data/com.unitymcplab.campfireroom/files/debug-logs/*.jsonl` on the headset |
+
+The friend zip's `BUILD-INFO.json` is byte-identical to the in-APK copy, and `scripts/package-friend-test.sh` surfaces both `version` and `versionCode` in the README + RELEASE-NOTES, so the tester can quote either in a bug report.
 
 The file is **gitignored** (`UnityProject/Assets/Resources/build-info.json` + `.meta`) so per-build timestamps and git SHAs don't pollute commit history. Regenerated fresh on every `./scripts/build-quest.sh` invocation; safe to delete locally — the next build recreates it.
 
