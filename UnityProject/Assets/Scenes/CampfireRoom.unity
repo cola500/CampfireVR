@@ -7388,6 +7388,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b2e1ea347f77fb4b936e3d12b09c0be, type: 3}
+--- !u!1 &466930885 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2629182449500102118, guid: 15ca4494f24bf9741a48b37ec2c4c632, type: 3}
+  m_PrefabInstance: {fileID: 1334190235}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &489180109
 GameObject:
   m_ObjectHideFlags: 0
@@ -11030,7 +11035,10 @@ PrefabInstance:
     - {fileID: 120674175278399982, guid: 15ca4494f24bf9741a48b37ec2c4c632, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2629182449500102118, guid: 15ca4494f24bf9741a48b37ec2c4c632, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1715078716}
   m_SourcePrefab: {fileID: 100100000, guid: 15ca4494f24bf9741a48b37ec2c4c632, type: 3}
 --- !u!1 &1335820755
 GameObject:
@@ -13074,6 +13082,25 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3402305891407841116, guid: 15ca4494f24bf9741a48b37ec2c4c632, type: 3}
   m_PrefabInstance: {fileID: 1334190235}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1715078716
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 466930885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 562df6b2412fa43cf9f0b83f6eb04a28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DogIdleBehaviour
+  breathingAmplitude: 0.005
+  breathingPeriod: 4
+  weightShiftAngle: 2
+  weightShiftMinInterval: 12
+  weightShiftMaxInterval: 25
+  weightShiftLerpSeconds: 0.7
+  weightShiftHoldSeconds: 0.4
 --- !u!1001 &1743732961
 PrefabInstance:
   m_ObjectHideFlags: 0

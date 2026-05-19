@@ -265,9 +265,38 @@ public static class QuestBuildAPK
         var cc = dog.GetComponentInChildren<CharacterController>();
         if (cc != null) Object.DestroyImmediate(cc);
 
+        // Add subtle idle life — see DogIdleBehaviour.cs for the design.
+        // Idempotent: skipped if a re-run finds the component already there.
+        if (dog.GetComponent<DogIdleBehaviour>() == null)
+            dog.AddComponent<DogIdleBehaviour>();
+
         EditorUtility.SetDirty(dog);
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log($"[QuestBuildAPK] Placed {DogInstanceName} at {dog.transform.position}, scale {dog.transform.localScale.x:F2}×, coat={coat.name}.");
+        Debug.Log($"[QuestBuildAPK] Placed {DogInstanceName} at {dog.transform.position}, scale {dog.transform.localScale.x:F2}×, coat={coat.name}, idle behaviour attached.");
+    }
+
+    // Standalone menu: attaches DogIdleBehaviour to an existing DogCompanion
+    // GameObject without destroying it. Use this when Johan has manually
+    // adjusted the dog's pose and just wants to apply the idle behaviour
+    // retroactively. Idempotent.
+    [MenuItem("Tools/Quest Setup/Apply Dog Idle Behaviour")]
+    public static void ApplyDogIdleBehaviour()
+    {
+        var dog = GameObject.Find(DogInstanceName);
+        if (dog == null)
+        {
+            Debug.LogWarning($"[QuestBuildAPK] No {DogInstanceName} in scene. Run 'Add Dog Companion' first.");
+            return;
+        }
+        if (dog.GetComponent<DogIdleBehaviour>() != null)
+        {
+            Debug.Log($"[QuestBuildAPK] {DogInstanceName} already has DogIdleBehaviour; nothing to do.");
+            return;
+        }
+        dog.AddComponent<DogIdleBehaviour>();
+        EditorUtility.SetDirty(dog);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log($"[QuestBuildAPK] DogIdleBehaviour attached to {DogInstanceName}. Save the scene to persist.");
     }
 
     private static Material GetOrCreateDogCoat()
