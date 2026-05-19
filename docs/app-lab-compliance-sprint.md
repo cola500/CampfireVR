@@ -3,7 +3,7 @@ title: App Lab / Horizon Store technical compliance sprint
 description: Sprint plan covering the seven technical slices needed to make CampfireVR submittable on the Horizon Store Early Access track. Marketing assets explicitly out of scope.
 category: meta
 status: planning
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 7 landed; keystore generation pending Johan-side)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 7 landed; keystore generation + headset validation pending Johan-side)
 sections:
   - Context and scope
   - Slice status at a glance
@@ -53,7 +53,7 @@ The marketing-and-dashboard side is a separate sprint that can run in parallel a
 | 1 | Android target SDK | S (~1 h) | DONE | Pinned to API 34; verified via `aapt2 dump badging`. |
 | 2 | Release signing keystore | S (~2 h) | DONE (code+docs) | `ReleaseSigningGuard` + env-var wiring + `docs/release-keystore.md` shipped. Actual `keytool -genkey` + env var export is a manual follow-up on Johan's machine. |
 | 3 | versionCode + versionName automation | S (~2 h) | DONE | `VersionCodeGuard` applies `git rev-list --count HEAD` per build; restores baseline post-build so disk stays clean. Verified versionCode=103 in APK manifest, ProjectSettings.asset unchanged. |
-| 4 | Focus / pause / resume handling | M (~3 h) | TODO | New runtime script; needs headset verification. |
+| 4 | Focus / pause / resume handling | M (~3 h) | DONE (code) | `AppLifecycle` + `VoiceBootstrap.SetTransmitEnabled`. Voice mic mute on focus loss, restore on regain. Headset verification of Meta-menu open/close pending. |
 | 5 | Performance readiness | M (~3 h) | TODO | Foveated rendering + Quest 3 target flag + checklist. |
 | 6 | Soak test checklist | S (~2 h) | TODO | Documentation-only; depends on slices 4 + 5 to land first. |
 | 7 | Privacy / data handling draft | S (~1.5 h) | DONE (draft) | `docs/privacy-policy-draft.md` shipped. 10 open verification questions tracked at the bottom; needs each resolved before becoming a hosted policy. |
@@ -156,10 +156,12 @@ Complexity scale: **XS** ≤ 1 h, **S** 1–3 h, **M** half-day, **L** full-day.
 
 ## Slice 4 — Focus / pause / resume handling
 
-**Status:** TODO
+**Status:** DONE (code, 2026-05-19) — headset verification of Meta-menu open/close pending Johan-side.
 **Complexity:** M (~3 h, including a two-headset verification pass)
 **Depends on:** nothing
 **Blocks:** VRC.Quest.Functional — Meta tests "system menu opens mid-session, app doesn't misbehave."
+
+**Landed:** New `Assets/Scripts/Lifecycle/AppLifecycle.cs` (~85 lines, `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` boot pattern mirroring DebugLogger). Implements `OnApplicationFocus(bool)` and `OnApplicationPause(bool)` separately so both transitions get their own log entries. Logs four events: `app_lifecycle_ready`, `app_focus_lost` / `app_focus_gained`, `app_paused` / `app_resumed`. Each focus event includes a `voice_transmit_muted` / `voice_transmit_restored` field so the log shows whether the voice mute fired together with the focus change. New `VoiceBootstrap.SetTransmitEnabled(bool)` toggles `Recorder.TransmitEnabled` on Photon Voice 2's PrimaryRecorder — mutes outgoing transmission while keeping the mic stream initialised, so voice resumes instantly on focus regain (no sub-second gap from mic re-initialisation that `RecordingEnabled` would cause). `_mutedByUs` flag ensures we only unmute on focus regain if our focus-loss handler is what muted in the first place. Deliberately does NOT touch NGO heartbeats, Relay session, or XRHeadTracker pose writes — system-menu open should not tear down the connection, and head-pose freeze on focus loss is left for a future slice if headset testing flags issues. `docs/debug-logging.md` event schema gains the four new event rows. Verified by `./scripts/build-quest.sh` (compiles, fixed one Unity deprecation warning along the way: `FindFirstObjectByType` → `FindAnyObjectByType`); full headset verification (open Meta menu mid-session, confirm via post-session log pull that focus event sequence is correct + voice mute confirmed) deferred to Johan's next two-headset session.
 
 **Goal:** When the user opens the Meta system menu (or removes the headset, or app loses input focus for any reason), CampfireVR pauses input reads + voice + network ticks and logs the event. When focus returns, everything resumes cleanly.
 

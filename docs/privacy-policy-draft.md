@@ -45,7 +45,7 @@ When you press **left X (host)** or **right B (join)**, CampfireVR connects to *
 
 - CampfireVR does **not** record or save your voice locally. Once the audio leaves the headset it is gone, as far as our app is concerned.
 - Photon's servers handle the routing. Their privacy policy is at <https://www.photonengine.com/en-US/Photon/Privacy-Policy> — please read it for what they do with the audio in transit. We don't have evidence that they retain it after routing, but verify with Photon's docs before publication.
-- When you long-press **left Y** to stop, or open the Meta system menu, voice routing stops and your mic is no longer being read. (System-menu mic-mute is planned in App Lab compliance Slice 4, not yet shipped at the time of this draft.)
+- When you long-press **left Y** to stop, or open the Meta system menu, voice transmission stops. (`AppLifecycle.cs` mutes `Recorder.TransmitEnabled` on `OnApplicationFocus(false)` — landed in App Lab compliance sprint Slice 4. The mic stream stays initialised so voice resumes instantly on focus regain; nothing reaches Photon's cloud while focus is lost. Headset verification of the actual Meta-menu behaviour is still pending — see open question #8 below.)
 
 ### Multiplayer session metadata
 
@@ -138,7 +138,7 @@ The honest list. Each of these needs a clear answer before the draft can be turn
 5. **AndroidManifest permission audit.** Run `aapt2 dump permissions Builds/CampfireVR-latest.apk` and confirm every declared permission is justified in this draft. Expected: `RECORD_AUDIO` (voice), `INTERNET` + `ACCESS_NETWORK_STATE` (Relay/Photon), Oculus-specific permissions (HMD, hand tracking — even if unused by the app, the SDK might declare them). Document any surprises.
 6. **Hosting location.** GitHub Pages on `cola500/CampfireVR` is the planned hosting recipe — verify the chosen URL stays stable and that the page renders with the current `last_updated` field. The Meta dashboard wants a single URL that doesn't move.
 7. **Legal review.** A 15-minute look from someone with privacy-policy experience before publishing. Not strictly required for App Lab / Early Access submissions but cheap insurance against language that overpromises or underdiscloses.
-8. **System-menu mic mute.** This draft promises that opening the Meta system menu stops the mic from being read. That's true *after* App Lab compliance Slice 4 lands — verify Slice 4 is committed before publishing this claim, or adjust the wording to reflect the current implementation.
+8. **System-menu mic mute — headset verification.** Slice 4 has landed (`AppLifecycle.cs` mutes `Recorder.TransmitEnabled` on focus loss). The code path is in place but full headset verification — open Meta menu mid-session, confirm via debug log that `app_focus_lost` fires with `voice_transmit_muted: true`, and confirm via the second tester that no audio reaches them while the menu is open — is still pending Johan's next two-headset session.
 9. **Logged "device_name" field.** `DebugLogger` logs `SystemInfo.deviceName` on every `app_started` event. On Quest this is usually a generic string ("Oculus Quest 3"), but if Meta's runtime ever exposes a user-set device name we'd be quietly capturing it. Verify what `deviceName` actually contains on a clean install before publishing.
 10. **Update cadence claim.** This draft doesn't promise a review cadence. Decide whether to commit to an annual review or "we update when something changes" — the latter is more honest for a hobby project.
 

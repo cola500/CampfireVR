@@ -119,6 +119,31 @@ public class VoiceBootstrap : MonoBehaviour
         _pendingRoom = null;
     }
 
+    // Toggle outgoing voice transmission via the primary Recorder's
+    // TransmitEnabled flag. Called by AppLifecycle when the Meta system
+    // menu opens (focus lost) so mic audio captured locally is no longer
+    // streamed to Photon's cloud servers; restored on focus regain.
+    //
+    // Mutes transmission rather than recording — the mic stream stays
+    // initialised so audio resumes instantly when the user returns to
+    // the app. RecordingEnabled-toggle would cause a sub-second gap on
+    // resume due to mic re-initialisation.
+    //
+    // Returns true if the call reached the Recorder (whether or not a
+    // toggle actually happened); false if voice/recorder isn't wired
+    // yet — in which case nothing is being transmitted anyway, so the
+    // caller can treat this as a successful no-op.
+    public bool SetTransmitEnabled(bool enabled)
+    {
+        var rec = _voice?.PrimaryRecorder;
+        if (rec == null) return false;
+        if (rec.TransmitEnabled == enabled) return true;
+        rec.TransmitEnabled = enabled;
+        return true;
+    }
+
+    public bool IsTransmitting => _voice?.PrimaryRecorder?.TransmitEnabled ?? false;
+
     public bool SetRoomProperty(string key, string value)
     {
         var room = _voice?.Client?.CurrentRoom;

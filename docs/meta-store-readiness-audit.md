@@ -3,7 +3,7 @@ title: Meta Horizon Store readiness audit (App Lab / Early Access track)
 description: Gap analysis comparing CampfireVR's current state against Meta's current submission requirements for an Early Access (formerly App Lab) release. Investigation-only.
 category: meta
 status: stable
-last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 7 landed)
+last_updated: 2026-05-19 (Slices 1 + 2 + 3 + 4 + 7 landed)
 sections:
   - Context and scope
   - What changed since "App Lab"
@@ -71,7 +71,7 @@ Audit against each category. Status legend: **PASS** = meets the bar / **GAP** =
 |---|---|---|
 | Head-tracked graphics within 4 s of launch, or show loading indicator | Tutorial panel + scene present at boot; not measured explicitly. | **UNKNOWN** — needs a timed boot measurement on Quest 3. |
 | Recenter must work via user-triggered action | Right A button → recenter via NetworkBootstrap, confirmed in `docs/install-on-quest.md` instructions to testers. | **PASS** (pending physical-headset re-verification — seat-relative rig might confuse system recenter expectations) |
-| Render / hide hands / ignore input when focus is lost (system menu) | Not explicitly handled — XRHeadTracker keeps reading device pose unconditionally in `LateUpdate`. | **GAP** — investigate Unity's `OnApplicationFocus(false)` and pause input + hide hand visuals while paused. |
+| Render / hide hands / ignore input when focus is lost (system menu) | `AppLifecycle` now wires `OnApplicationFocus` / `OnApplicationPause` → mutes Photon Voice transmission. Logs lifecycle events. NGO + Relay deliberately kept up across focus loss for cheap recovery. XRHeadTracker pose-freeze still TODO (left for follow-up if headset testing flags head-drift artifacts). | **PARTIAL** [updated: app-lab-compliance-sprint Slice 4] — voice + logging covered; head-pose freeze deferred. |
 | No crash / freeze during a 30+ minute session | Long-press Y stop + try/catch teardown in `NetworkBootstrap` covers session-recovery path. No formal soak test. | **UNKNOWN** — recommend a 30-min two-headset session before submission. |
 | Completability — user can't get stuck without an exit path | Long-press Y returns to "Ready" idle state; Meta button always reachable. | **PASS** |
 
@@ -129,7 +129,7 @@ In rough size order:
 
 ## Recommended (should fix before submission)
 
-7. **`OnApplicationFocus(false)` handler** in NetworkBootstrap (or a new SystemFocusGuard MonoBehaviour) — pause input reads + hide remote hand visuals while the system menu is open. Reduces "ghost input fires while user is in the Meta menu" risk. ~1 hour.
+7. ~~**`OnApplicationFocus(false)` handler** in NetworkBootstrap (or a new SystemFocusGuard MonoBehaviour) — pause input reads + hide remote hand visuals while the system menu is open. Reduces "ghost input fires while user is in the Meta menu" risk. ~1 hour.~~ **Done — voice path** [updated: app-lab-compliance-sprint Slice 4] — `AppLifecycle` mutes Photon Voice transmission on focus loss. Input read + remote hand visuals still un-suspended; revisit if headset testing flags issues.
 8. ~~**`bundleVersionCode` auto-increment in the build pipeline** — extend `scripts/build-quest.sh` or `QuestBuildAPK.cs` to bump the code based on git commit count or a monotonic stamp. Meta only requires that it strictly increases across Store uploads — Editor-side iteration builds don't need it. ~30 min.~~ **Done** [updated: app-lab-compliance-sprint Slice 3] — `VersionCodeGuard` + `scripts/build-quest.sh` automate this end-to-end with no on-disk drift.
 9. **Foveated rendering** — flip on in Oculus loader settings; trivial perf win. ~5 min.
 10. **Frame-time capture during a real two-player session** — confirm we're locked at 90 Hz with no missed frames during a 5-min connected session including voice + remote head/hand sync. Use OVRMetricsTool or `adb logcat` for the headset's perf overlay. ~1 hour.

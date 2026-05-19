@@ -24,6 +24,9 @@ CampfireVR writes timestamped, structured events to a local file on every Quest 
 | `client_connected` / `client_disconnected` | NGO callbacks | NetworkManager-level peer presence |
 | `stop_pressed` / `stopped` | Editor X key | Graceful shutdown trace |
 | `unity_error` | Any Unity `LogError` / `LogException` / `Assert` | Crash and error capture |
+| `app_lifecycle_ready` | AppLifecycle.Start() | Lifecycle handler is wired and watching focus/pause |
+| `app_focus_lost` / `app_focus_gained` | Unity `OnApplicationFocus(bool)` transitions | Meta system menu open/close, headset removal; includes `voice_transmit_muted` / `voice_transmit_restored` to show whether voice mute fired |
+| `app_paused` / `app_resumed` | Unity `OnApplicationPause(bool)` transitions | Quest sleep/wake, app pushed to background; usually pairs with focus events on Quest |
 | `app_quit` | OnApplicationQuit | End-of-session marker |
 | `MANUAL_MARKER` | Editor `L` key (or `DebugLogger.Marker()` from any script) | "We said now" — synchronise both logs |
 
