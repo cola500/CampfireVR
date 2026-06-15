@@ -151,7 +151,7 @@ What is bigger and outside C1 itself is **Axis A** (Photon Voice connection stat
 - **`AddCallbackTarget` early**: move from `Update()` to right after `_voice = GetComponent<VoiceConnection>()` in `Start()`. (`_voice.Client` is null until `ConnectUsingSettings` completes, so guard accordingly — may need to retry registration on first Client availability.)
 - **Correlation IDs**: optional; add only if log-analysis pain shows up during harness runs.
 
-### 2. Axis A — connection-state hardening (new, this is the real fix)
+### 2. Axis A — connection-state hardening (new, this is the real fix) [landed: 2026-06-15, see `docs/axis-a-hardening-slice.md`]
 
 Treat Photon Voice as unreliable on Quest/mobile. Before any host/join button action:
 
@@ -466,6 +466,13 @@ These need answers before we move from plan → implementation:
 
 This document is the contract for the next iteration. It will be edited in-place as gates pass or fail; do not strike-through, just update sections with `[updated: <date>]` markers.
 
-**Next concrete action**: L0 already passed 24/24 against the C1 audit anchor `e669c05` (committed 2026-06-15 after L0 succeeded against the then-uncommitted working tree). With L0 green, the open decision is whether to implement the proposed L1 harness (small editor-only slice — needs explicit approval before any C# lands) or skip straight to **Level 2** with the committed code. L2's first-failing gate determines whether C1 needs hardening (joiner retries, `AddCallbackTarget` timing) and whether the 8 s timeouts need tuning.
+**Status as of 2026-06-15 evening:**
+
+- L0 GREEN against `e669c05` (24/24).
+- L2 hotspot GREEN twice in a row against `e669c05` (`docs/l2-editor-quest-test.md` gates G1–G9 all PASS — see `quest-logs/20260615-203050/campfirevr-log-20260615-202723.jsonl`).
+- L2 same-LAN FAIL identified as router hairpin NAT, not code (backlog row 4.108).
+- Axis A connection-state hardening landed in `docs/axis-a-hardening-slice.md`. C1 lines shift downstream of the additions; L0 must be re-run against the new commit and re-anchored here.
+
+**Next concrete action**: re-run L0 audit against new HEAD (post-Axis-A). When L0 GREEN, re-run L2 on hotspot to confirm acceptance criteria from the Axis A slice. Then L3 (Henrik) is unblocked once backlog rows 4.101 (LAN default flip) and 4.102 (now closed by Axis A's mode-toggle stop-first) are also resolved.
 
 The L0 → L1 → L2 → L3 order is non-negotiable: each rung is a precondition for the next, and a fail at any rung means stop, fix, re-run from that rung.
