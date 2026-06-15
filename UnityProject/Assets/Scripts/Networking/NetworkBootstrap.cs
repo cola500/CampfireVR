@@ -122,6 +122,11 @@ public class NetworkBootstrap : MonoBehaviour
         {
             nm.OnClientConnectedCallback += OnClientConnected;
             nm.OnClientDisconnectCallback += OnClientDisconnected;
+            // Axis A: hook NGO's own transport-failure callback so we can
+            // surface the failure state and reset our internal flags instead
+            // of being silently stuck in "Waiting for friend" while NGO
+            // shuts down underneath us.
+            nm.OnTransportFailure += OnTransportFailure;
         }
         DebugLogger.Log("network_bootstrap_ready", null,
             ("mode", mode.ToString()),
@@ -136,7 +141,26 @@ public class NetworkBootstrap : MonoBehaviour
         {
             nm.OnClientConnectedCallback -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
+            nm.OnTransportFailure -= OnTransportFailure;
         }
+    }
+
+    // Axis A: NGO's `UnityTransport` raised a fatal failure (e.g. Unity
+    // Relay reported the allocation needs to be recreated). NGO has
+    // already shut down by the time this fires; our job is to surface
+    // a clear state to the user and reset internal flags so the next
+    // host/join attempt starts from a clean slate.
+    void OnTransportFailure()
+    {
+        var nm = NetworkManager.Singleton;
+        bool wasHost = nm != null && nm.IsHost;
+        DebugLogger.Log("ngo_transport_failure_detected", null,
+            ("mode", mode.ToString()),
+            ("was_host", wasHost));
+        _state = "Connection dropped — press X then try again";
+        _busy = false;
+        _hostedAlias = "";
+        _joinCodeInput = "";
     }
 
     void OnClientConnected(ulong id)
@@ -349,8 +373,24 @@ public class NetworkBootstrap : MonoBehaviour
         prevP = p; prevS = s;
     }
 
-    void ToggleMode()
+    // Axis A: if a session is live when the user toggles mode, tear it
+    // down first. Verified 2026-06-15 (backlog row 4.102): without this
+    // guard, ToggleMode flips the enum but leaves the active NGO/Relay/
+    // Photon Voice session running, causing the next host/join press to
+    // race a half-up old session.
+    async void ToggleMode()
     {
+        var nm = NetworkManager.Singleton;
+        bool inNgoSession = nm != null && (nm.IsHost || nm.IsClient);
+        bool inRelaySession = _services != null && _services.InRelaySession;
+        if (inNgoSession || inRelaySession)
+        {
+            DebugLogger.Log("mode_toggle_stop_first", null,
+                ("mode", mode.ToString()),
+                ("in_ngo_session", inNgoSession),
+                ("in_relay_session", inRelaySession));
+            await StopAsync();
+        }
         mode = (mode == Mode.Lan) ? Mode.Relay : Mode.Lan;
         _state = $"Mode · {CurrentModeLabel}";
         DebugLogger.Log("mode_changed", null, ("mode", mode.ToString()));
@@ -396,6 +436,28 @@ public class NetworkBootstrap : MonoBehaviour
         }
 
         if (_services == null || !_services.IsReady) { _state = "Signing in"; DebugLogger.Log("relay_host_blocked", "services-not-ready"); return; }
+
+        // Axis A: Photon Voice preflight. Without this guard, JoinRoom
+        // queued via `_pendingRoom` and the host would silently wait up to
+        // `WaitForRoomJoinedAsync`'s 8 s for a state that may never arrive
+        // (verified 2026-06-15 Henrik join: "JoinOrCreateRoom can't be
+        // sent because peer is not connected"). Surface the offline state
+        // immediately and try one reconnect before failing.
+        if (_voiceBootstrap != null && !_voiceBootstrap.IsConnectedToMaster)
+        {
+            DebugLogger.Log("relay_host_voice_offline", null,
+                ("state", _voiceBootstrap.CurrentState));
+            _voiceBootstrap.TryReconnect();
+            bool reconnected = await _voiceBootstrap.WaitForConnectedAsync(5f);
+            if (!reconnected)
+            {
+                _state = "Voice offline — try again";
+                DebugLogger.Log("relay_host_voice_reconnect_failed", null,
+                    ("state", _voiceBootstrap.CurrentState));
+                return;
+            }
+        }
+
         _busy = true;
         _state = "Creating fire";
         DebugLogger.Log("relay_host_attempt", null, ("room", CurrentLetter.ToString()));
@@ -529,6 +591,22 @@ public class NetworkBootstrap : MonoBehaviour
 
         if (_services == null || !_services.IsReady) { _state = "Signing in"; DebugLogger.Log("relay_join_blocked", "services-not-ready"); return; }
 
+        // Axis A: Photon Voice preflight, mirror of StartHost.
+        if (_voiceBootstrap != null && !_voiceBootstrap.IsConnectedToMaster)
+        {
+            DebugLogger.Log("relay_join_voice_offline", null,
+                ("state", _voiceBootstrap.CurrentState));
+            _voiceBootstrap.TryReconnect();
+            bool reconnected = await _voiceBootstrap.WaitForConnectedAsync(5f);
+            if (!reconnected)
+            {
+                _state = "Voice offline — try again";
+                DebugLogger.Log("relay_join_voice_reconnect_failed", null,
+                    ("state", _voiceBootstrap.CurrentState));
+                return;
+            }
+        }
+
         // Always join the currently selected room letter (default 'A').
         _joinCodeInput = CurrentRoom;
         var alias = _joinCodeInput;
@@ -564,11 +642,26 @@ public class NetworkBootstrap : MonoBehaviour
         DebugLogger.Log("relay_join_calling");
         bool ok = await _services.JoinRelayAsync(realCode);
         _busy = false;
-        if (!ok) { _state = "Couldn't reach fire"; DebugLogger.Log("relay_join_failed"); }
+        if (!ok)
+        {
+            _state = "Couldn't reach fire";
+            DebugLogger.Log("relay_join_failed");
+            // Axis A: leave the Photon voice room so the next press of B
+            // starts from a clean slate instead of racing a half-joined
+            // state. Preserves the failure state text.
+            await ResetAfterFailedJoinAsync();
+            _state = "Couldn't reach fire";
+        }
         else DebugLogger.Log("relay_join_succeeded");
     }
 
-    async void Stop()
+    // Fire-and-forget wrapper for callers that don't need to await the
+    // teardown (the Y long-press in-VR and the X key in Editor).
+    void Stop() { _ = StopAsync(); }
+
+    // Awaitable version — used by ToggleMode and post-failed-join paths
+    // that need to wait for the teardown to finish before continuing.
+    async Task StopAsync()
     {
         // Caller (long-press Y in-VR, X-key in Editor) already logged
         // stop_requested with its source. Tear down voice → Relay → NGO in
@@ -601,6 +694,23 @@ public class NetworkBootstrap : MonoBehaviour
         _state = "Stopped session";
         DebugLogger.Log(clean ? "stop_completed" : "stop_completed_with_errors", null,
             ("mode", mode.ToString()), ("room", CurrentLetter.ToString()));
+    }
+
+    // Axis A: lighter teardown after a failed Relay join. The joiner never
+    // entered the room from NGO's perspective so we don't shutdown NGO;
+    // we just leave the Photon voice room (so a retry doesn't race a
+    // half-joined state) and reset our internal flags. Caller preserves
+    // the failure state text ("Couldn't reach fire") that the user just saw.
+    async Task ResetAfterFailedJoinAsync()
+    {
+        DebugLogger.Log("relay_join_cleanup_after_fail");
+        try { _voiceBootstrap?.LeaveRoom(); }
+        catch (System.Exception e)
+        { DebugLogger.Log("stop_step_failed", "voice_leave_after_failed_join", ("error", e.Message)); }
+        _joinCodeInput = "";
+        _busy = false;
+        // Yield once so the Photon LeaveRoom op gets queued before we return.
+        await Task.Yield();
     }
 
     bool ConfigureLanTransport()

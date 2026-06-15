@@ -15,6 +15,17 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
     private bool _callbacksRegistered;
     private ClientState _lastLoggedState = ClientState.PeerCreated;
 
+    // Axis A: focus/disconnect reconnect tracking. Single-shot per trigger;
+    // never loops. See `Update()` for the trigger edges.
+    private bool _wasFocused = true;
+    private bool _reconnectScheduled;
+    private bool _disconnectedWhileInRoom;
+    // Tracks the last ConnectUsingSettings() call so we can log
+    // voice_reconnect_succeeded/_failed when we transition back to
+    // ConnectedToMasterServer (or never make it there before next attempt).
+    private bool _reconnectInFlight;
+    private const float IdleReconnectBackoffSeconds = 5f;
+
     // Photon event codes for the Relay-code handshake. Valid app range
     // is 1-199 (200+ reserved by Photon internals).
     //
@@ -46,6 +57,21 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
 
     public bool InRoom => _inRoom;
     public string CurrentRoomName => _voice?.Client?.CurrentRoom?.Name ?? "";
+
+    // Axis A: "ready to operate" — i.e. ConnectedToMasterServer or already
+    // Joined to a room. Both states accept OpJoinOrCreateRoom (Photon
+    // auto-leaves an existing room on a new join). Disconnected,
+    // Authenticating, ConnectingToNameServer etc. all return false.
+    public bool IsConnectedToMaster
+    {
+        get
+        {
+            var s = _voice?.Client?.State;
+            return s == ClientState.ConnectedToMasterServer || s == ClientState.Joined;
+        }
+    }
+
+    public string CurrentState => _voice?.Client?.State.ToString() ?? "null";
 
     void Start()
     {
@@ -79,11 +105,48 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
         }
 
         // Only log on state transitions, never every frame.
+        // Axis A: also use the transition edge to resolve the outcome of
+        // any in-flight reconnect attempt — a clean transition to
+        // ConnectedToMasterServer is success, a fall back to Disconnected
+        // from a "connecting" state is failure.
         if (state != _lastLoggedState)
         {
             DebugLogger.Log("voice_state", null, ("state", state.ToString()));
+            if (_reconnectInFlight)
+            {
+                if (state == ClientState.ConnectedToMasterServer || state == ClientState.Joined)
+                {
+                    DebugLogger.Log("voice_reconnect_succeeded");
+                    _reconnectInFlight = false;
+                    _disconnectedWhileInRoom = false;
+                }
+                else if (state == ClientState.Disconnected &&
+                         (_lastLoggedState == ClientState.ConnectingToMasterServer ||
+                          _lastLoggedState == ClientState.Authenticating ||
+                          _lastLoggedState == ClientState.ConnectingToNameServer ||
+                          _lastLoggedState == ClientState.ConnectedToNameServer))
+                {
+                    DebugLogger.Log("voice_reconnect_failed", null,
+                        ("from_state", _lastLoggedState.ToString()));
+                    _reconnectInFlight = false;
+                }
+            }
             _lastLoggedState = state;
         }
+
+        // Axis A: focus-regain reconnect trigger. Photon Voice sockets can
+        // be reaped by the OS when the app is backgrounded (Quest puts the
+        // app to sleep on focus loss). On focus regain, if the client is
+        // disconnected, kick a single reconnect. We do NOT auto-rejoin the
+        // room — that's the user's call (press host/join again).
+        bool focusedNow = Application.isFocused;
+        if (focusedNow && !_wasFocused && state == ClientState.Disconnected)
+        {
+            DebugLogger.Log("voice_focus_regain_reconnect", null,
+                ("from_state", state.ToString()));
+            TryReconnect();
+        }
+        _wasFocused = focusedNow;
 
         if (state == ClientState.ConnectedToMasterServer && !string.IsNullOrEmpty(_pendingRoom))
         {
@@ -109,15 +172,45 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
             }
             else if (state == ClientState.Disconnected)
             {
-                if (_inRoom) DebugLogger.Log("voice_disconnected_while_in_room");
+                if (_inRoom)
+                {
+                    DebugLogger.Log("voice_disconnected_while_in_room");
+                    _disconnectedWhileInRoom = true;
+                }
                 _inRoom = false;
                 _status = "Voice: disconnected";
+
+                // Axis A: idle disconnect → schedule one reconnect after
+                // a short backoff. Guarded by _reconnectScheduled so a
+                // re-entrant Update can't queue duplicates, and by
+                // Application.isFocused so a backgrounded app doesn't burn
+                // battery retrying.
+                if (_disconnectedWhileInRoom && !_reconnectScheduled && Application.isFocused)
+                {
+                    _reconnectScheduled = true;
+                    _ = ScheduleIdleReconnectAsync();
+                }
             }
             else if (!_inRoom)
             {
                 _status = $"Voice: {state}";
             }
         }
+    }
+
+    // Single-shot delayed reconnect — runs once per disconnect-while-in-room
+    // event, never loops, and only fires if the app is still focused at the
+    // moment of the attempt. Cleared via _reconnectScheduled at completion
+    // (success or failure observed via the next state transition).
+    private async Task ScheduleIdleReconnectAsync()
+    {
+        await Task.Delay((int)(IdleReconnectBackoffSeconds * 1000));
+        if (Application.isFocused && _voice?.Client?.State == ClientState.Disconnected)
+        {
+            DebugLogger.Log("voice_idle_disconnect_reconnect");
+            TryReconnect();
+        }
+        _reconnectScheduled = false;
     }
 
     public void JoinRoom(string roomName)
@@ -247,6 +340,46 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
             waited += pollMs / 1000f;
         }
         return _inRoom;
+    }
+
+    // -------- Axis A: connection-state hardening ---------------------
+    //
+    // Axis A separates "is Photon Voice ready to operate" from "is the
+    // Relay-code discovery wired" so failures don't tangle. NetworkBootstrap
+    // calls WaitForConnectedAsync as a preflight before host/join.
+    // TryReconnect is idempotent and never loops — one shot per trigger.
+
+    public async Task<bool> WaitForConnectedAsync(float timeoutSeconds = 5f, int pollMs = 200)
+    {
+        float waited = 0f;
+        while (waited < timeoutSeconds)
+        {
+            if (IsConnectedToMaster) return true;
+            await Task.Delay(pollMs);
+            waited += pollMs / 1000f;
+        }
+        return IsConnectedToMaster;
+    }
+
+    // Returns true if a reconnect is now in-flight (or we were already
+    // connected). Returns false only if we can't even attempt — e.g. the
+    // VoiceConnection component hasn't initialised yet.
+    public bool TryReconnect()
+    {
+        if (_voice?.Client == null) return false;
+        if (IsConnectedToMaster) return true;
+        // Already in the middle of a connection attempt — don't queue a
+        // second ConnectUsingSettings, Photon doesn't like that.
+        var s = _voice.Client.State;
+        if (s == ClientState.ConnectingToMasterServer ||
+            s == ClientState.Authenticating ||
+            s == ClientState.ConnectingToNameServer ||
+            s == ClientState.ConnectedToNameServer) return true;
+
+        DebugLogger.Log("voice_reconnect_attempt", null, ("from_state", s.ToString()));
+        _reconnectInFlight = true;
+        _voice.ConnectUsingSettings();
+        return true;
     }
 
     // -------- Relay code discovery via Photon events (Plan C1) ----------
