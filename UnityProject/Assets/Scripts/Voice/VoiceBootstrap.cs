@@ -6,13 +6,43 @@ using Photon.Voice.Unity;
 using UnityEngine;
 
 [RequireComponent(typeof(VoiceConnection))]
-public class VoiceBootstrap : MonoBehaviour
+public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
 {
     private VoiceConnection _voice;
     private string _status = "Voice: idle";
     private string _pendingRoom;
     private bool _inRoom;
+    private bool _callbacksRegistered;
     private ClientState _lastLoggedState = ClientState.PeerCreated;
+
+    // Photon event codes for the Relay-code handshake. Valid app range
+    // is 1-199 (200+ reserved by Photon internals).
+    //
+    //   1 = broadcast — host pushes the code to a newly joined player
+    //       via OnPlayerEnteredRoom (the "host hears your join, sends
+    //       rc unprompted" path).
+    //   2 = request — joiner pings the host on room entry asking for
+    //       the code (covers the case where OnPlayerEnteredRoom on the
+    //       host hasn't fired yet or otherwise misses us).
+    //   3 = response — host's reply to a request, targeted at the
+    //       requesting actor.
+    //
+    // Broadcast + request/response run in parallel. Whichever arrives
+    // first on the joiner side wins; the late one is ignored because
+    // the TCS is already completed.
+    private const byte RelayCodeBroadcastEventCode = 1;
+    private const byte RelayCodeRequestEventCode = 2;
+    private const byte RelayCodeResponseEventCode = 3;
+
+    // Host-side: when set, OnPlayerEnteredRoom forwards this code to the
+    // newly-joined player via OpRaiseEvent. Cleared when the host stops.
+    private string _hostRelayCodeForBroadcast;
+
+    // Joiner-side: created at the start of WaitForRelayCodeEventAsync,
+    // completed by OnEvent when the relay-code event arrives, or by
+    // timeout. We track the captured instance locally to avoid
+    // cross-call leaks if the user re-presses Join.
+    private TaskCompletionSource<string> _relayCodeWaiter;
 
     public bool InRoom => _inRoom;
     public string CurrentRoomName => _voice?.Client?.CurrentRoom?.Name ?? "";
@@ -37,6 +67,16 @@ public class VoiceBootstrap : MonoBehaviour
         if (_voice == null || _voice.Client == null) return;
 
         var state = _voice.Client.State;
+
+        // Register Photon callbacks once the client exists. Photon's
+        // AddCallbackTarget needs a live Client; doing this in Start
+        // could race against `_voice.ConnectUsingSettings()` if Photon
+        // hasn't created the Client yet.
+        if (!_callbacksRegistered)
+        {
+            _voice.Client.AddCallbackTarget(this);
+            _callbacksRegistered = true;
+        }
 
         // Only log on state transitions, never every frame.
         if (state != _lastLoggedState)
@@ -207,6 +247,157 @@ public class VoiceBootstrap : MonoBehaviour
             waited += pollMs / 1000f;
         }
         return _inRoom;
+    }
+
+    // -------- Relay code discovery via Photon events (Plan C1) ----------
+    //
+    // Photon Voice's LoadBalancingClient does not propagate custom room
+    // or player properties to new joiners (verified across three
+    // 2026-06-15 headset tests: room-prop original, room-prop with
+    // CustomRoomPropertiesForLobby + initial-create, master-client
+    // player-prop). Photon *events* however do propagate — that's how
+    // voice works. So we use OpRaiseEvent to hand the Relay code from
+    // host to joiner whenever a player enters the host's room.
+    //
+    // The existing SetLocalPlayerProperty / GetLocalPlayerProperty flow
+    // remains as a host-side diagnostic (confirms the host can write to
+    // its own LocalPlayer custom properties — useful signal independent
+    // of the broadcast path). Joiners no longer read player or room
+    // properties for discovery.
+
+    // Host stores the Relay code that should be forwarded to any new
+    // joiner. Cleared on session teardown.
+    public void PublishRelayCodeToJoiners(string relayCode)
+    {
+        _hostRelayCodeForBroadcast = relayCode;
+    }
+
+    public void ClearPublishedRelayCode()
+    {
+        _hostRelayCodeForBroadcast = null;
+    }
+
+    // Joiner-side: await the next relay-code event with a timeout.
+    // Returns the code, or null on timeout. Safe under single-flight
+    // re-presses (NetworkBootstrap's `_busy` guard ensures one caller
+    // at a time).
+    //
+    // Also fires an immediate request event so the host can reply even
+    // if its OnPlayerEnteredRoom callback timing is off — defensive
+    // against Photon delivering player-join notifications after the
+    // joiner has finished its `voice_joined` handling.
+    public async Task<string> WaitForRelayCodeEventAsync(float timeoutSeconds = 8f)
+    {
+        var tcs = new TaskCompletionSource<string>();
+        _relayCodeWaiter = tcs;
+
+        // Ask the host for the code. Targeted at the master client
+        // (= host in our flow). Failure to send is logged but not fatal —
+        // OnPlayerEnteredRoom broadcast may still arrive.
+        if (_voice?.Client != null && _voice.Client.InRoom)
+        {
+            var requestOptions = new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient };
+            bool sent = _voice.Client.OpRaiseEvent(
+                RelayCodeRequestEventCode,
+                null,
+                requestOptions,
+                SendOptions.SendReliable);
+            DebugLogger.Log("relay_code_request_sent", null, ("queued", sent));
+        }
+
+        var timeoutTask = Task.Delay((int)(timeoutSeconds * 1000));
+        var winner = await Task.WhenAny(tcs.Task, timeoutTask);
+
+        // Detach so a late event doesn't accidentally fill the next
+        // call's TCS with stale data.
+        if (_relayCodeWaiter == tcs) _relayCodeWaiter = null;
+
+        if (winner == tcs.Task) return await tcs.Task;
+        DebugLogger.Log("relay_join_code_event_timeout", null,
+            ("timeout_seconds", timeoutSeconds));
+        return null;
+    }
+
+    // -------- IInRoomCallbacks ----------------------------------------
+
+    // Host's response to a new player joining: forward the Relay code.
+    // Targets only the new player (TargetActors). No-op if we're not
+    // hosting / haven't published a code yet.
+    public void OnPlayerEnteredRoom(Player newPlayer)
+    {
+        if (string.IsNullOrEmpty(_hostRelayCodeForBroadcast)) return;
+        if (_voice?.Client == null) return;
+
+        var options = new RaiseEventOptions { TargetActors = new[] { newPlayer.ActorNumber } };
+        bool sent = _voice.Client.OpRaiseEvent(
+            RelayCodeBroadcastEventCode,
+            _hostRelayCodeForBroadcast,
+            options,
+            SendOptions.SendReliable);
+
+        DebugLogger.Log("relay_host_event_broadcast", null,
+            ("target_actor", newPlayer.ActorNumber),
+            ("queued", sent));
+    }
+
+    public void OnPlayerLeftRoom(Player otherPlayer) { /* no-op */ }
+    public void OnMasterClientSwitched(Player newMasterClient) { /* no-op */ }
+    public void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps) { /* no-op */ }
+    public void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged) { /* no-op */ }
+
+    // -------- IOnEventCallback ----------------------------------------
+
+    // Three event flows go through OnEvent. Other Photon Voice
+    // internal events fall through.
+    //
+    // - Broadcast / Response (codes 1, 3): joiner consumes; carry the
+    //   rc string. Whichever arrives first wins.
+    // - Request (code 2): host consumes; replies with a Response
+    //   targeted at the requesting actor.
+    public void OnEvent(EventData photonEvent)
+    {
+        switch (photonEvent.Code)
+        {
+            case RelayCodeBroadcastEventCode:
+            {
+                if (!(photonEvent.CustomData is string code)) return;
+                DebugLogger.Log("relay_code_broadcast_received", null,
+                    ("code_length", code.Length));
+                _relayCodeWaiter?.TrySetResult(code);
+                return;
+            }
+
+            case RelayCodeResponseEventCode:
+            {
+                if (!(photonEvent.CustomData is string code)) return;
+                DebugLogger.Log("relay_code_response_received", null,
+                    ("code_length", code.Length));
+                _relayCodeWaiter?.TrySetResult(code);
+                return;
+            }
+
+            case RelayCodeRequestEventCode:
+            {
+                DebugLogger.Log("relay_code_request_received", null,
+                    ("from_actor", photonEvent.Sender));
+                if (string.IsNullOrEmpty(_hostRelayCodeForBroadcast)) return;
+                if (_voice?.Client == null) return;
+
+                var responseOptions = new RaiseEventOptions
+                {
+                    TargetActors = new[] { photonEvent.Sender },
+                };
+                bool sent = _voice.Client.OpRaiseEvent(
+                    RelayCodeResponseEventCode,
+                    _hostRelayCodeForBroadcast,
+                    responseOptions,
+                    SendOptions.SendReliable);
+                DebugLogger.Log("relay_code_response_sent", null,
+                    ("target_actor", photonEvent.Sender),
+                    ("queued", sent));
+                return;
+            }
+        }
     }
 
     void OnGUI()

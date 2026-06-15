@@ -433,7 +433,13 @@ public class NetworkBootstrap : MonoBehaviour
         // ready. If verify fails after retries, the joiner would just see
         // "Host's code missing" — better to surface that on the host side
         // so the user can long-press-Y and try again instead of waiting.
+        // Set + verify on LocalPlayer.CustomProperties is now retained
+        // as a diagnostic: it confirms the host can write its own player
+        // state. The actual joiner discovery happens via Photon events
+        // (PublishRelayCodeToJoiners below + VoiceBootstrap's
+        // OnPlayerEnteredRoom forwarder).
         bool propertyVerified = await SetAndVerifyRelayCodeAsync(realCode);
+        _voiceBootstrap?.PublishRelayCodeToJoiners(realCode);
 
         _busy = false;
         if (propertyVerified)
@@ -542,21 +548,17 @@ public class NetworkBootstrap : MonoBehaviour
             return;
         }
 
-        DebugLogger.Log("relay_join_master_property_wait", null,
-            ("room", alias),
-            ("timeout_seconds", RelayJoinPropertyTimeoutSec));
-        var realCode = await _voiceBootstrap.WaitForMasterClientPlayerPropertyAsync(
-            RelayCodeProperty, RelayJoinPropertyTimeoutSec);
+        // Discovery via Photon events (Plan C1): joiner sends a request,
+        // host either broadcasts on OnPlayerEnteredRoom or responds to
+        // the request. Whichever event arrives first wins.
+        var realCode = await _voiceBootstrap.WaitForRelayCodeEventAsync(RelayJoinPropertyTimeoutSec);
         if (string.IsNullOrEmpty(realCode))
         {
             _busy = false;
             _state = "Host's code missing";
-            DebugLogger.Log("relay_join_master_property_missing", null,
-                ("room", alias),
-                ("waited_seconds", RelayJoinPropertyTimeoutSec));
+            // Timeout event is already logged by WaitForRelayCodeEventAsync.
             return;
         }
-        DebugLogger.Log("relay_join_master_property_found", null, ("room", alias));
 
         _state = "Joining fire";
         DebugLogger.Log("relay_join_calling");
@@ -573,6 +575,7 @@ public class NetworkBootstrap : MonoBehaviour
         // that order; each step swallows its own errors so a partial fail
         // doesn't block the rest of the recovery.
         bool clean = true;
+        _voiceBootstrap?.ClearPublishedRelayCode();
         try { _voiceBootstrap?.LeaveRoom(); }
         catch (System.Exception e) { clean = false; DebugLogger.Log("stop_step_failed", "voice_leave", ("error", e.Message)); }
 
