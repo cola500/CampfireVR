@@ -3,7 +3,7 @@ title: Networking stabilization plan
 description: Verification-first plan for CampfireVR's two-peer discovery (Photon Voice + Unity Relay). Separates connection-state failures from join-code-discovery failures, reviews the shipping C1 event-based protocol, and defines a local Editor-as-peer harness that lets us prove the flow with a single Quest before involving Henrik again.
 category: networking
 status: draft
-last_updated: 2026-06-15
+last_updated: 2026-06-15 (added Level 0–3 verification ladder; replaces flat "Local verification strategy" + "Minimal harness slice" sections)
 sections:
   - Purpose
   - Two failure axes
@@ -12,9 +12,12 @@ sections:
   - Current architecture
   - C1 design review
   - Recommended design
-  - Local verification strategy
-  - Minimal harness slice (proposed)
-  - Acceptance gates for next remote test
+  - Verification ladder
+  - Level 0 — Static dry-run
+  - Level 1 — Simulated dry-run
+  - Level 2 — Editor-as-peer verification
+  - Level 3 — Two-headset verification
+  - Acceptance gates summary
   - Out of scope
   - Open questions
 ---
@@ -177,82 +180,263 @@ Wrap the existing `StartHost` / `StartClient` entry points with:
 
 Then proceed with the existing flow.
 
-## Local verification strategy
+## Verification ladder
 
-Johan currently has one Quest. We need to validate Axis A + Axis B without Henrik.
+Johan has one Quest. We have no Henrik available. The 2026-06-15 sessions taught us that ad-hoc two-headset tests produce ambiguous logs because too many failure surfaces are tangled at once. The cure is to climb a ladder of increasingly realistic verification, where each rung is **cheap to repeat** and **fails for one specific reason**.
 
-### Recommendation: Editor-as-peer (Option A) — primary
+| Level | What it proves | Photon? | Relay? | Unity Play? | Quest? | Henrik? |
+|---|---|---|---|---|---|---|
+| **L0** Static dry-run | Code paths and log events exist and match the plan | no | no | no | no | no |
+| **L1** Simulated dry-run | Joiner TCS / timeout / event-handler logic is correct in isolation | **no** (mocked) | **no** (mocked) | yes (Editor) | no | no |
+| **L2** Editor-as-peer | Real Photon Voice + real Unity Relay round-trip between Editor and Quest | yes | yes | yes (Editor) | yes (1) | no |
+| **L3** Two-headset | Two real Quests over the open internet — production-equivalent | yes | yes | no | yes (2) | yes |
 
-**Why**: NetworkBootstrap *already* has Editor key shortcuts (`H` host, `C` join, `M` mode, `X` stop) at `NetworkBootstrap.cs:159–166`. The Unity Editor running the scene connects to the same Photon Voice cloud and Unity Relay services the headset uses. We can run the Editor as peer A and the Quest as peer B, on the same network or different networks. Zero new dependencies.
+A failure at level *N* is a debugging hint that's pre-localised to the new surface introduced at *N*. If L0 passes and L1 fails, the bug is in the discovery-logic surface (TCS handling, event-code routing). If L1 passes and L2 fails, the bug is at the Photon/Relay integration surface (real network, real Photon Voice client). If L2 passes and L3 fails, the bug is at the headset surface (focus loss, Quest-specific Photon behaviour).
 
-**Why not the alternatives**:
+**Rule**: do not climb to level *N* until level *N−1* has passed twice in a row.
 
-- **Option B (Mac standalone player)**: heavier, requires a Mac IL2CPP build, no benefit over Editor.
-- **Option C (Editor-only Photon harness scene)**: would isolate Axis B from Axis A, but we'd be re-implementing what `VoiceBootstrap` already does. Only worth building if Option A reveals that Editor + Quest run paths diverge in ways that hide Axis B bugs. We're not there yet.
-- **Option D (headless CLI)**: out of scope — overbuilding.
+---
 
-### What the harness must prove (acceptance for Option A)
+## Level 0 — Static dry-run
 
-In ascending order — each gate must pass before the next is meaningful:
+**Purpose**: confirm the code we *think* exists, exists. No Unity, no Play mode, no log file. ~5 minutes with an editor and `grep`.
+
+**Why this exists**: the C1 row in the backlog references `VoiceBootstrap.cs:33–35, 270–401` and a list of seven log events. If those line numbers drift or an event name was typo'd, the rest of the ladder is wasted effort. L0 catches that in under a minute.
+
+### Audit checklist
+
+Walk this list top-to-bottom against the current commit. Tick each item; on the first FAIL, stop and fix before continuing.
+
+**A. Event-code constants (`VoiceBootstrap.cs`)**
+
+- [ ] `RelayCodeBroadcastEventCode = 1` declared (currently line 33)
+- [ ] `RelayCodeRequestEventCode = 2` declared (line 34)
+- [ ] `RelayCodeResponseEventCode = 3` declared (line 35)
+- [ ] All three are in the 1–199 app-event range (200+ reserved by Photon)
+
+**B. Host-side broadcast path**
+
+- [ ] `OnPlayerEnteredRoom` (line 326) early-returns if `_hostRelayCodeForBroadcast` is null
+- [ ] `OnPlayerEnteredRoom` raises code 1 with `TargetActors = [newPlayer.ActorNumber]` (line 331) — targeted, not broadcast
+- [ ] `SendOptions.SendReliable` is used (line 336)
+- [ ] Result is logged as `relay_host_event_broadcast` with `target_actor` + `queued` fields (line 338)
+
+**C. Joiner-side request + wait**
+
+- [ ] `WaitForRelayCodeEventAsync` creates one TCS per call and assigns to `_relayCodeWaiter` (line 291–292)
+- [ ] Request is raised only when `_voice.Client.InRoom` is true (line 297)
+- [ ] Request is raised with `Receivers = ReceiverGroup.MasterClient` (line 299)
+- [ ] Request send is logged as `relay_code_request_sent` with `queued` field (line 305)
+- [ ] Method awaits `Task.WhenAny(tcs.Task, timeoutTask)` with the caller's `timeoutSeconds` (line 308–309)
+- [ ] `_relayCodeWaiter` is nulled before return so a late event can't fill a future TCS (line 313)
+- [ ] Timeout path logs `relay_join_code_event_timeout` with `timeout_seconds` (line 316–317)
+
+**D. Joiner-side event handler**
+
+- [ ] `OnEvent` switches on `photonEvent.Code` (line 359)
+- [ ] Code 1 (broadcast) → log `relay_code_broadcast_received` with `code_length`, complete TCS (line 361–367)
+- [ ] Code 3 (response) → log `relay_code_response_received` with `code_length`, complete TCS (line 370–376)
+- [ ] Code 2 (request) → log `relay_code_request_received` with `from_actor`, raise code 3 response targeted at sender (line 379–399)
+- [ ] Response send is logged as `relay_code_response_sent` with `target_actor` + `queued` (line 395–397)
+
+**E. NetworkBootstrap integration**
+
+- [ ] `StartHost` calls `_voiceBootstrap?.PublishRelayCodeToJoiners(realCode)` after voice-room-joined and before declaring `_state = "Waiting for friend"` (line 442)
+- [ ] `StartClient` awaits `_voiceBootstrap.WaitForRelayCodeEventAsync(RelayJoinPropertyTimeoutSec)` with the 8 s timeout (line 554)
+- [ ] `Stop()` calls `_voiceBootstrap?.ClearPublishedRelayCode()` so a re-host doesn't reuse a stale code (line 578)
+
+**F. Log-event documentation parity (`docs/debug-logging.md`)**
+
+- [ ] All seven C1 events documented in the table: `relay_host_event_broadcast`, `relay_code_request_sent`, `relay_code_request_received`, `relay_code_response_sent`, `relay_code_response_received`, `relay_code_broadcast_received`, `relay_join_code_event_timeout`
+
+### First-failing-gate interpretation
+
+| First failing item | Diagnosis | What to do |
+|---|---|---|
+| A.* | Event codes wrong or missing → C1 not actually shipping | Re-check `git log VoiceBootstrap.cs`; the plan's references are stale. **Stop the ladder.** |
+| B.* | Host can't broadcast on join → unsolicited path broken | Fix in source. Re-run L0. |
+| C.1–C.4 | Joiner won't even send a request → request/response backup useless | Fix in source. Re-run L0. |
+| C.5–C.7 | TCS lifecycle bug → late events could leak into next call, or timeout never fires | Fix in source. **Critical — L1 will not catch this if the TCS field handling is wrong.** |
+| D.* | Joiner won't consume incoming events → no code path can succeed | Fix in source. Re-run L0. |
+| E.* | Integration broken between NetworkBootstrap and VoiceBootstrap → C1 wired wrong even if both halves work | Fix in source. Re-run L0. |
+| F.* | Logs won't tell us what happened during L1/L2/L3 → we'll be debugging blind | Update `debug-logging.md`. Not a code bug but a verification blocker. |
+
+L0 is intentionally pessimistic: even one FAIL aborts the ladder. The whole point is to never run L1/L2/L3 against a baseline we can't trust.
+
+---
+
+## Level 1 — Simulated dry-run
+
+**Purpose**: prove that joiner-side TCS completion, timeout, and event-handler logic behave correctly **without any Photon Voice cloud connection or Unity Relay allocation**. Catches logic bugs that would otherwise hide behind real network non-determinism at L2.
+
+**Cost**: one new editor-only file. Zero production C# changes.
+
+### Why this rung is worth the small harness
+
+If L0 + L2 pass, L1 is technically optional. But L1 is also the **only** rung where we can deterministically reproduce a specific edge case (e.g. "what happens if a late broadcast arrives after timeout completed the TCS as null?"). Real Photon will not let us reproduce that on demand. So L1 lives between "checklist" and "real network" specifically to harden the logic without flakiness.
+
+### State of existing code (audit result)
+
+Searched `VoiceBootstrap.cs` and `NetworkBootstrap.cs` for `dry.?run|simulate|UNITY_EDITOR|debug.?inject|test.?hook` — **zero matches**. No existing hook lets us drive `OnEvent` synthetically or complete `_relayCodeWaiter` from a test harness. So L1 needs a small new surface.
+
+### Proposed harness — smallest safe slice
+
+**Not yet implemented; awaiting approval before adding any C#.**
+
+Two parts, both **editor-only**, both behind `#if UNITY_EDITOR` guards so they cannot reach a Player build:
+
+**Part 1: One editor-only inject method on `VoiceBootstrap`** (~15 lines, `#if UNITY_EDITOR` guarded):
+
+```csharp
+#if UNITY_EDITOR
+// Editor-only hook for Level 1 dry-run verification. Bypasses Photon by
+// directly completing the pending relay-code TCS. Throws if no waiter is
+// active so a misuse fails loud instead of silently no-op'ing.
+// Never compiled into Player builds.
+internal void DryRun_CompleteRelayCodeWaiter(string code, string source)
+{
+    if (_relayCodeWaiter == null)
+        throw new System.InvalidOperationException(
+            "DryRun_CompleteRelayCodeWaiter called with no active waiter");
+    DebugLogger.Log("dryrun_relay_code_injected", null,
+        ("source", source), ("code_length", code?.Length ?? 0));
+    _relayCodeWaiter.TrySetResult(code);
+}
+#endif
+```
+
+**Part 2: New editor-only file `UnityProject/Assets/Editor/Networking/RelayDiscoveryDryRun.cs`** (~80 lines). Adds three menu items under `Tools/Networking/Dry-Run/`:
+
+- **`Simulate joiner receives response`** — starts a `WaitForRelayCodeEventAsync(8s)` on the active `VoiceBootstrap`, schedules a coroutine that calls `DryRun_CompleteRelayCodeWaiter("FAKE-CODE", "response")` after 1 s, asserts the awaited result equals `"FAKE-CODE"`. Pass = `dryrun_l1_pass` log event.
+- **`Simulate joiner times out`** — same start, no inject. Asserts the awaited result is null after ~8 s, and `relay_join_code_event_timeout` was logged exactly once. Pass = `dryrun_l1_pass` log event.
+- **`Simulate late event after timeout`** — starts a 3 s wait, schedules an inject at 5 s. Asserts the await returns null at ~3 s, the late inject throws (because `_relayCodeWaiter` is null by then), and no second TCS gets corrupted. Pass = `dryrun_l1_pass` log event.
+
+All three log to the existing `DebugLogger` so the results land in the same JSONL stream as Level 2/3.
+
+### Why this design is the smallest defensible slice
+
+- **No production behaviour change**: the inject method is `#if UNITY_EDITOR`. It cannot be reached by code paths the Quest binary executes — verified by the compile guard, not by convention.
+- **No new networking code**: we are not adding event codes, transports, or state. Only a way to *complete* the existing TCS from outside the existing OnEvent path.
+- **No mock VoiceConnection / fake Photon**: those would be larger surfaces and easy to drift from the real one. Bypassing at the TCS layer means we still exercise our real `WaitForRelayCodeEventAsync` body.
+- **Three tests cover the three branches** of the existing logic (response wins, timeout wins, late event arrives) — no more, no less.
+
+### What L1 does NOT cover
+
+L1 is deliberately partial. It does **not** prove:
+
+- That Photon Voice's `OpRaiseEvent` actually delivers (that's L2/L3).
+- That `OnEvent` is registered early enough to catch the host's broadcast (that's L2 — needs real Photon timing).
+- That Photon Voice doesn't drop the connection on idle (that's L2/L3 with real network conditions).
+- Host-side `OnPlayerEnteredRoom` broadcast logic — we'd need a fourth test that fires a synthetic `Player`-entered callback, which requires reflection or another inject method. **Defer** to L2 unless L2 specifically fails the host broadcast path.
+
+### Acceptance for L1
+
+- All three menu items pass twice in a row from a fresh Editor Play session.
+- The DebugLogger JSONL contains three `dryrun_l1_pass` events per pair of runs.
+- No `unity_error` events fire during any of the three tests.
+
+If L1 fails on test 1 or 2, the bug is in the TCS plumbing (likely in `WaitForRelayCodeEventAsync` or `OnEvent`). If L1 fails on test 3, the bug is in the late-event guard at line 313 (`_relayCodeWaiter = null` before return).
+
+---
+
+## Level 2 — Editor-as-peer verification
+
+**Purpose**: prove the full C1 round-trip over real Photon Voice and real Unity Relay, with one peer in Unity Editor and one peer on Johan's Quest. This is "Option A" from the earlier draft of this plan.
+
+**Why this rung exists separately from L3**: Editor running on a Mac has no focus loss, no sensor-off events, no Quest-specific Photon Voice quirks. So the Editor side **cannot** fail Axis A. If L2 succeeds and L3 fails, the bug is Quest-only — exactly the diagnostic separation we couldn't get on 2026-06-15.
+
+### Setup (works today with current code — no new C#)
+
+NetworkBootstrap already has Editor key shortcuts (`H` host, `C` join, `M` mode toggle, `X` stop) at `NetworkBootstrap.cs:159–166`. The Editor's `VoiceBootstrap` connects to the same Photon Voice cloud the Quest does, and the Editor's `ServicesBootstrap` allocates from the same Unity Relay project.
+
+### How Johan runs L2
+
+1. Build APK + install on Quest: `./scripts/build-quest.sh --install`
+2. Open `Assets/Scenes/CampfireRoom.unity` in Editor.
+3. Editor: press Play. Press `M` until top-of-screen reads `Mode: Relay`. Press `H` to host.
+4. Quest: launch the app. Short-tap Y until tutorial overlay shows Internet mode. Press B to join.
+5. Pull Quest logs: `./scripts/pull-quest-logs.sh`
+6. Editor log is at `~/Library/Application Support/CampfireVR/CampfireVR/debug-logs/`
+7. Walk the gates below in order. Stop and diagnose at the first failing gate.
+
+### Gates (each must pass before the next is meaningful)
 
 | Gate | What we observe | Pass criterion |
 |---|---|---|
-| **G1: Editor reaches `voice_state=Joined`** in room A | Editor Console + JSONL log | `voice_joined` fires within 10 s of pressing `H` |
-| **G2: Quest reaches `voice_state=Joined`** in room A | Quest log (adb pull) | Same |
-| **G3: Host's `relay_alloc_succeeded` fires before voice room joined** | Editor log | Timestamps confirm |
-| **G4: Joiner sends `relay_code_request_sent` after `voice_joined`** | Quest log | Event present with `queued=true` |
-| **G5: Host receives `relay_code_request_received`** | Editor log | Event present with `from_actor=<quest's actor>` |
-| **G6: Host sends `relay_code_response_sent`** | Editor log | Event present with `queued=true` |
-| **G7: Joiner receives `relay_code_response_received`** | Quest log | Event present with `code_length>0` |
-| **G8: Joiner's `relay_join_succeeded`** | Quest log | NGO peer connection established |
-| **G9: NGO `client_connected` fires on both sides** | Both logs | IDs visible in both logs |
-| **G10: Photon disconnect during host's idle is detected** | Take headset off for 60 s, put back on, check Editor log | `voice_disconnected_while_in_room` followed by `voice_reconnect_attempt` after focus regain (only after Axis A hardening lands) |
+| **G1** Editor reaches `voice_state=Joined` in room A | Editor JSONL | `voice_joined` fires within 10 s of pressing `H` |
+| **G2** Quest reaches `voice_state=Joined` in room A | Quest JSONL | Same |
+| **G3** Host's `relay_alloc_succeeded` fires before `voice_joined` | Editor JSONL | Timestamps confirm order |
+| **G4** Joiner sends `relay_code_request_sent` after its `voice_joined` | Quest JSONL | Event with `queued=true` |
+| **G5** Host receives `relay_code_request_received` | Editor JSONL | Event with `from_actor=<n>` |
+| **G6** Host sends `relay_code_response_sent` | Editor JSONL | Event with `queued=true` |
+| **G7** Joiner receives `relay_code_response_received` (or `_broadcast_received`) | Quest JSONL | Event with `code_length>0` |
+| **G8** Joiner's `relay_join_succeeded` | Quest JSONL | NGO peer connection established |
+| **G9** NGO `client_connected` fires on both sides | Both JSONL | IDs visible in both |
+| **G10** Photon disconnect during host idle is detected | Take Quest off 60 s, put back on | `voice_disconnected_while_in_room` then `voice_reconnect_attempt` after focus regain (**only after Axis A hardening lands**) |
 
-G1–G9 prove C1's design end-to-end. G10 proves Axis A hardening.
+G1–G9 prove C1's design end-to-end. G10 proves Axis A hardening, and can only pass once the hardening from the "Recommended design" section is implemented.
 
-### How Johan runs Option A
+### What can fail at L2 that L0+L1 won't catch
 
-Pre-Axis-A-hardening (today, with current code):
+- `OpRaiseEvent` not actually delivering on Photon Voice's LoadBalancingClient (unverified — see "What is unverified").
+- `AddCallbackTarget` registered too late (`Update()` line 75–79) so the broadcast misses the joiner. If G7 only ever shows `_response_received` and never `_broadcast_received` across multiple runs, this is the culprit. (Diagnosis-only — does not change correctness because response path is the backup.)
+- 8 s timeout too tight under realistic Wi-Fi.
+- Photon master-client identity reassigned during the discovery window.
 
-1. Open `Assets/Scenes/CampfireRoom.unity` in Editor.
-2. Build APK and install on Quest (`./scripts/build-quest.sh --install`).
-3. In Editor, press Play. Press `M` until mode reads `Relay`. Press `H` to host.
-4. On Quest, launch the app. Switch to Internet mode (Y short tap). Press B to join.
-5. Pull Quest logs (`./scripts/pull-quest-logs.sh`) + read Editor log from `~/Library/Application Support/CampfireVR/CampfireVR/debug-logs/`.
-6. Compare against G1–G9 above. Note which gate fails first.
+### Acceptance for L2
 
-This works *today* without writing any new code. The only friction is needing to manually press both Quest and Editor at the right times. A minimal Editor menu (`Tools/Networking/Auto Host`, `Tools/Networking/Auto Join Room A`) would remove that friction but is not blocking.
+- G1–G9 pass twice in a row.
+- After Axis A hardening lands: G10 also passes.
 
-### Why this isolates Axis A from Axis B
+---
 
-- Editor doesn't have a headset → no focus-loss / pause / sensor-off events ever fire. Editor's Photon Voice connection is stable as long as Mac stays awake. So **Axis A is removed on at least one peer.**
-- If C1 fails Editor↔Quest, we know Axis B is the problem (Editor side has no connection-state issues).
-- If C1 succeeds Editor↔Quest but fails Quest↔Quest with Henrik, Axis A is the problem on Henrik's side.
+## Level 3 — Two-headset verification
 
-This is the diagnostic separation we couldn't get from the 2026-06-15 sessions because both sides were Quests with unstable Photon connections.
+**Purpose**: prove the system works in the actual production configuration — two Quests on separate networks, with real focus loss, real sensor toggling, real cross-NAT Relay traffic.
 
-## Minimal harness slice (proposed)
+**Precondition**: every other level green. We do not ask Henrik to install a build until L0–L2 are all passing.
 
-Only worth building if Option A's manual flow shows specific friction. The minimum is:
+### Henrik-readiness checklist (must all be true)
 
-- **Editor menu**: `Tools/Networking/Run As Host (Room A, Relay)` and `Tools/Networking/Run As Joiner (Room A, Relay)`. Each menu item plays the scene and synthesizes the H or B button press once `_services.IsReady` and Photon is `ConnectedToMasterServer`.
-- **No new networking code**. Just an Editor wrapper that drives the existing `StartHost` / `StartClient`.
-- **No new UI**, no new harness scene, no headless mode.
+- [ ] **L0 passes** on the current commit (audit complete, all items ticked)
+- [ ] **L1 passes** twice in a row (three menu tests, three `dryrun_l1_pass` events × 2)
+- [ ] **L2 G1–G9 pass** twice in a row (Editor + Johan's Quest)
+- [ ] **L2 G10 passes** at least once (Axis A hardening landed)
+- [ ] **Backlog row 4.101 closed** — scene default flipped to `Mode.Relay` so LAN can't trap a fresh tester
+- [ ] **Backlog row 4.102 closed** — `ToggleMode()` calls `Stop()` first if in a session
+- [ ] **APK identity captured**: which commit hash, which APK filename, which `build_version` string in `app_started` — sent to Henrik
+- [ ] **Expected per-step state documented** for Henrik: "press B, expect to see *X* on screen within *Y* seconds"
 
-If Option A's manual flow proves the gates without this menu, **don't build it.** YAGNI.
+### What L3 proves that L2 doesn't
 
-## Acceptance gates for next remote test
+- Cross-NAT Relay traversal (Editor + Quest on same LAN don't exercise this fully).
+- Focus loss / sensor off-on triggering Photon disconnect → reconnect path on a real Quest.
+- Variance across two separate Quest devices on two separate Wi-Fi networks.
+- Subjective UX of the discovery delay (8 s timeouts can feel different in headset than at a desk).
 
-Before we ask Henrik to install another build:
+### What success at L3 looks like in the logs
 
-1. **G1–G9 pass locally** (Editor + Johan's Quest) at least twice in a row, with all expected JSONL events in both logs.
-2. **Axis A hardening landed** (preflight check + `WaitForConnectedAsync` + focus-regain reconnect). G10 passes locally.
-3. **C1 either kept as-is or hardened with joiner retries** (decision made after G1–G9; if those pass clean, retries are optional).
-4. **Backlog row 4.101 (LAN `127.0.0.1` trap) closed** — default mode flipped to `Relay` so a fresh tester can't accidentally hit it. (One-line change, cheap, removes a confounding variable from Henrik's next test.)
-5. **Backlog row 4.102 (mode-toggle doesn't stop session) closed** — `ToggleMode()` calls `Stop()` first if in a session. (Same as above — removes confounding orphan sessions.)
-6. **Two-headset preconditions documented**: which scene version (commit hash), which APK filename, what Henrik should see at each step.
+Same gate pattern as L2, but now with both peers being Quests:
 
-Items 4 and 5 are not strictly C1 work but they are baseline cleanup that must happen for the next session to give us interpretable logs.
+- Both `henrik-*.jsonl` and `johan-*.jsonl` show G1–G9 in their respective roles
+- Either or both show `voice_disconnected_while_in_room` followed by a clean `voice_reconnect_succeeded` if anyone toggles their headset off-on mid-session (G10 in production)
+- `client_connected` events appear in both logs within 30 s of the joiner pressing B
+
+---
+
+## Acceptance gates summary
+
+Single-page roll-up of what must be true at each rung before climbing:
+
+| Rung | Pass criterion | Repeats required | Time cost (approx) |
+|---|---|---|---|
+| L0 | Every checklist item ticked, no FAIL | 1 (re-run on every commit that touches C1) | 5 min |
+| L1 | All three menu tests pass, 3× `dryrun_l1_pass` events | 2 fresh-Editor-Play sessions in a row | 10 min |
+| L2 G1–G9 | All nine gates pass in JSONL order | 2 runs in a row | 20 min per run |
+| L2 G10 | Disconnect + reconnect detected after focus regain | 1 (requires Axis A hardening landed) | 5 min |
+| L3 | Same gates as L2 with both peers being Quests, full per-step doc shared | 1 successful run | 60 min including setup |
+
+The ladder is deliberately monotonic: a passing rung never becomes invalid until production code on the verified path changes. Each commit that touches `VoiceBootstrap` or the `StartHost`/`StartClient` flow in `NetworkBootstrap` invalidates L0 onwards and the ladder must be re-climbed from L0.
 
 ## Out of scope
 
@@ -282,4 +466,6 @@ These need answers before we move from plan → implementation:
 
 This document is the contract for the next iteration. It will be edited in-place as gates pass or fail; do not strike-through, just update sections with `[updated: <date>]` markers.
 
-**Next concrete action**: run Option A's manual G1–G9 sequence with the current commit (`7b333b9`) before changing any code. The result of that run determines whether we need joiner retries, whether `AddCallbackTarget` timing matters in practice, and whether the 8 s timeout needs tuning.
+**Next concrete action**: walk the **Level 0 audit checklist** against commit `7b333b9` (last C1 code change). On green L0, decide whether to implement the proposed L1 harness (small editor-only slice — needs explicit approval before any C# lands) or skip straight to **Level 2** with the current code. L2's first-failing gate determines whether C1 needs hardening (joiner retries, `AddCallbackTarget` timing) and whether the 8 s timeouts need tuning.
+
+The L0 → L1 → L2 → L3 order is non-negotiable: each rung is a precondition for the next, and a fail at any rung means stop, fix, re-run from that rung.
