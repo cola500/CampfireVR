@@ -60,6 +60,22 @@ public class NetworkBootstrap : MonoBehaviour
     // can suppress it if the press grew into a long-press.
     private const float StopLongPressDuration = 1.5f;
 
+    // Host-side property write + verify constants. Photon's
+    // SetCustomProperties is fire-and-forget (returns true once queued,
+    // not on server ack) — observed in the 2026-06-15 two-headset session
+    // that the host saw relay_host_ready but the joiner saw `rc` missing
+    // on three independent attempts. We now read the property back from
+    // our own CurrentRoom view, with retries, before claiming readiness.
+    private const int RelayPropertyMaxAttempts = 3;
+    private const int RelayPropertyVerifyDelayMs = 250;
+    private const int RelayPropertyRetryDelayMs = 500;
+    // Joiner waits this long for the property to appear in its local
+    // CustomProperties view. Bumped from 5 s to 8 s to give Photon
+    // more slack on slower connections; host verify worst case is
+    // ~2.25 s so the joiner still has ~5 s of cushion when the host
+    // succeeded.
+    private const float RelayJoinPropertyTimeoutSec = 8f;
+
     private string _joinCodeInput = "";
     private string _state = "Idle";
     private string _lastButton = "";
@@ -401,13 +417,82 @@ public class NetworkBootstrap : MonoBehaviour
         _state = "Sharing room";
         _voiceBootstrap?.JoinRoom(_hostedAlias);
 
+        // Voice must be in the room before we can write the Relay code as
+        // a custom property on it — that's how the joiner picks it up.
         bool roomReady = false;
         if (_voiceBootstrap != null) roomReady = await _voiceBootstrap.WaitForRoomJoinedAsync(8f);
-        if (roomReady) _voiceBootstrap.SetRoomProperty(RelayCodeProperty, realCode);
+        if (!roomReady)
+        {
+            _busy = false;
+            _state = "Voice room failed";
+            DebugLogger.Log("relay_host_voice_failed");
+            return;
+        }
+
+        // Set + verify the rc property locally before claiming the host is
+        // ready. If verify fails after retries, the joiner would just see
+        // "Host's code missing" — better to surface that on the host side
+        // so the user can long-press-Y and try again instead of waiting.
+        bool propertyVerified = await SetAndVerifyRelayCodeAsync(realCode);
 
         _busy = false;
-        _state = roomReady ? "Waiting for friend" : "Voice room failed";
-        DebugLogger.Log(roomReady ? "relay_host_ready" : "relay_host_voice_failed");
+        if (propertyVerified)
+        {
+            _state = "Waiting for friend";
+            DebugLogger.Log("relay_host_ready");
+        }
+        else
+        {
+            _state = "Host code didn't sync — long-press Y, try again";
+            DebugLogger.Log("relay_host_property_set_failed", null,
+                ("room", CurrentLetter.ToString()));
+        }
+    }
+
+    // Set the Relay join code as a Photon room property, then verify it
+    // by reading our own local CurrentRoom view. Retries up to
+    // RelayPropertyMaxAttempts; each attempt is queue → wait
+    // RelayPropertyVerifyDelayMs → read back. Emits one log event per
+    // step so the JSONL trail makes it obvious which step failed.
+    //
+    // Returns true if a read-back saw the code we wrote; false if all
+    // attempts failed (queue refused, or queued but never visible).
+    async Task<bool> SetAndVerifyRelayCodeAsync(string code)
+    {
+        if (_voiceBootstrap == null) return false;
+
+        for (int attempt = 1; attempt <= RelayPropertyMaxAttempts; attempt++)
+        {
+            DebugLogger.Log("relay_host_property_set_attempt", null,
+                ("attempt", attempt), ("key", RelayCodeProperty));
+            bool queued = _voiceBootstrap.SetRoomProperty(RelayCodeProperty, code);
+            DebugLogger.Log("relay_host_property_set_result", null,
+                ("attempt", attempt), ("queued", queued));
+
+            if (!queued)
+            {
+                await Task.Delay(RelayPropertyRetryDelayMs);
+                continue;
+            }
+
+            DebugLogger.Log("relay_host_property_verify_attempt", null,
+                ("attempt", attempt));
+            await Task.Delay(RelayPropertyVerifyDelayMs);
+
+            string readBack = _voiceBootstrap.GetRoomProperty(RelayCodeProperty);
+            if (readBack == code)
+            {
+                DebugLogger.Log("relay_host_property_verify_succeeded", null,
+                    ("attempt", attempt));
+                return true;
+            }
+
+            DebugLogger.Log("relay_host_property_verify_failed", null,
+                ("attempt", attempt),
+                ("read_back_was", string.IsNullOrEmpty(readBack) ? "null" : "different"));
+            await Task.Delay(RelayPropertyRetryDelayMs);
+        }
+        return false;
     }
 
     async void StartClient()
@@ -450,12 +535,14 @@ public class NetworkBootstrap : MonoBehaviour
             return;
         }
 
-        var realCode = await _voiceBootstrap.WaitForRoomPropertyAsync(RelayCodeProperty, 5f);
+        var realCode = await _voiceBootstrap.WaitForRoomPropertyAsync(RelayCodeProperty, RelayJoinPropertyTimeoutSec);
         if (string.IsNullOrEmpty(realCode))
         {
             _busy = false;
             _state = "Host's code missing";
-            DebugLogger.Log("relay_join_property_missing", null, ("room", alias));
+            DebugLogger.Log("relay_join_property_missing", null,
+                ("room", alias),
+                ("waited_seconds", RelayJoinPropertyTimeoutSec));
             return;
         }
 

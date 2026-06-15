@@ -16,8 +16,10 @@ CampfireVR writes timestamped, structured events to a local file on every Quest 
 | `lan_host_attempt` / `lan_host_ready` / `lan_host_failed` | LAN host flow | Same-Wi-Fi diagnostics |
 | `lan_join_attempt` / `lan_join_started` / `lan_join_failed` | LAN client flow | Same-Wi-Fi diagnostics |
 | `relay_host_attempt` / `relay_alloc_succeeded` / `relay_alloc_failed` | Unity Relay allocation | Internet-mode allocation failures |
-| `relay_host_ready` / `relay_host_voice_failed` | Host pipeline complete | Voice room property set after Relay alloc |
-| `relay_join_attempt` / `relay_join_voice_timeout` / `relay_join_property_missing` / `relay_join_calling` / `relay_join_succeeded` / `relay_join_failed` | Internet client flow | Specific failure points along Relay join |
+| `relay_host_property_set_attempt` / `relay_host_property_set_result` | Per-attempt host write of Photon `rc` property | Captures `queued` boolean from `SetCustomProperties`; up to 3 attempts per host call |
+| `relay_host_property_verify_attempt` / `relay_host_property_verify_succeeded` / `relay_host_property_verify_failed` | Host reads `rc` back from its own room view after the write | Detects the `SetCustomProperties` fire-and-forget silent failure that broke the 2026-06-15 two-headset session |
+| `relay_host_ready` / `relay_host_voice_failed` / `relay_host_property_set_failed` | Host pipeline complete or failed | `ready` only fires after verify succeeded; `property_set_failed` is the new explicit "rc never synced" path so the host surfaces a visible failure instead of silently looking ready while the joiner can't see it |
+| `relay_join_attempt` / `relay_join_voice_timeout` / `relay_join_property_missing` / `relay_join_calling` / `relay_join_succeeded` / `relay_join_failed` | Internet client flow | Specific failure points along Relay join. `relay_join_property_missing` now includes `waited_seconds` (timeout bumped from 5 s to 8 s) |
 | `voice_connect_attempt` | VoiceBootstrap.Start() | Photon Voice cloud connection start |
 | `voice_state` | Photon `ClientState` transitions | Connection state debugging |
 | `voice_joined` / `voice_left_room` / `voice_disconnected_while_in_room` / `voice_room_join_attempt` / `voice_room_leave_requested` | Voice room lifecycle | Voice room name + timing |
