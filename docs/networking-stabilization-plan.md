@@ -26,7 +26,7 @@ sections:
 
 ## Purpose
 
-The 2026-06-15 Henrik+Johan session burned ~8 minutes per attempt mashing buttons across three independent fix attempts (`henrik2/johan2`, `henrik3/johan3`, `henrik5/johan5`, `henrik6/johan6`). The C1 event-based discovery (`relay_code_request` / `_response` / `_broadcast` via `OpRaiseEvent`) was deployed in commit `7b333b9` but has **never been observed working end-to-end** because Henrik's Photon Voice connection died before the joiner state machine reached the request step.
+The 2026-06-15 Henrik+Johan session burned ~8 minutes per attempt mashing buttons across three independent fix attempts (`henrik2/johan2`, `henrik3/johan3`, `henrik5/johan5`, `henrik6/johan6`). The scheme Henrik actually tested was **Plan B** (host writes `rc` to its own LocalPlayer custom property; joiner reads it via master-client lookup), shipped in commit `7b333b9`. Plan B failed because Photon Voice's LoadBalancingClient does not propagate custom properties to new joiners — the joiner saw `relay_join_master_property_missing` after 8 s on every attempt. **C1** (`relay_code_request` / `_response` / `_broadcast` via `OpRaiseEvent`) was authored as the replacement after that session and committed as `e669c05` on the same day. C1 has **never been observed working end-to-end on real Photon** — it postdates the 2026-06-15 session and has not been exercised since.
 
 We will stop stacking fixes blindly. This document is the verification-first replacement for the next iteration:
 
@@ -466,6 +466,6 @@ These need answers before we move from plan → implementation:
 
 This document is the contract for the next iteration. It will be edited in-place as gates pass or fail; do not strike-through, just update sections with `[updated: <date>]` markers.
 
-**Next concrete action**: walk the **Level 0 audit checklist** against commit `7b333b9` (last C1 code change). On green L0, decide whether to implement the proposed L1 harness (small editor-only slice — needs explicit approval before any C# lands) or skip straight to **Level 2** with the current code. L2's first-failing gate determines whether C1 needs hardening (joiner retries, `AddCallbackTarget` timing) and whether the 8 s timeouts need tuning.
+**Next concrete action**: L0 already passed 24/24 against the C1 audit anchor `e669c05` (committed 2026-06-15 after L0 succeeded against the then-uncommitted working tree). With L0 green, the open decision is whether to implement the proposed L1 harness (small editor-only slice — needs explicit approval before any C# lands) or skip straight to **Level 2** with the committed code. L2's first-failing gate determines whether C1 needs hardening (joiner retries, `AddCallbackTarget` timing) and whether the 8 s timeouts need tuning.
 
 The L0 → L1 → L2 → L3 order is non-negotiable: each rung is a precondition for the next, and a fail at any rung means stop, fix, re-run from that rung.
