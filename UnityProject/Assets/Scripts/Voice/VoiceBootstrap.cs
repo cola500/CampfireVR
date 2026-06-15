@@ -144,28 +144,52 @@ public class VoiceBootstrap : MonoBehaviour
 
     public bool IsTransmitting => _voice?.PrimaryRecorder?.TransmitEnabled ?? false;
 
-    public bool SetRoomProperty(string key, string value)
+    // Discovery for the Relay join code uses *player* custom properties
+    // rather than room custom properties. Photon Voice's LoadBalancingClient
+    // (verified empirically in the 2026-06-15 two-headset tests) does not
+    // propagate room CustomProperties to new joiners even when the key is
+    // listed in CustomRoomPropertiesForLobby and set at room creation
+    // time. Player properties broadcast unconditionally to all room
+    // members on join and on every update — the documented robust path
+    // for this pattern in Photon Realtime.
+    //
+    // Host writes its own LocalPlayer property; joiner reads the master
+    // client player's property (the host is always the master client
+    // since OpJoinOrCreateRoom makes the first caller the master, and
+    // host calls JoinRoom before any joiner does in our flow).
+
+    public bool SetLocalPlayerProperty(string key, string value)
     {
-        var room = _voice?.Client?.CurrentRoom;
-        if (room == null) return false;
+        var lp = _voice?.Client?.LocalPlayer;
+        if (lp == null) return false;
         var props = new Hashtable { { key, value } };
-        return room.SetCustomProperties(props);
+        return lp.SetCustomProperties(props);
     }
 
-    public string GetRoomProperty(string key)
+    public string GetLocalPlayerProperty(string key)
     {
-        var room = _voice?.Client?.CurrentRoom;
-        if (room == null) return null;
-        if (room.CustomProperties.TryGetValue(key, out object v)) return v as string;
+        var lp = _voice?.Client?.LocalPlayer;
+        if (lp == null) return null;
+        if (lp.CustomProperties.TryGetValue(key, out object v)) return v as string;
         return null;
     }
 
-    public async Task<string> WaitForRoomPropertyAsync(string key, float timeoutSeconds = 5f, int pollMs = 200)
+    public string GetMasterClientPlayerProperty(string key)
+    {
+        var room = _voice?.Client?.CurrentRoom;
+        if (room == null) return null;
+        var master = room.GetPlayer(room.MasterClientId);
+        if (master == null) return null;
+        if (master.CustomProperties.TryGetValue(key, out object v)) return v as string;
+        return null;
+    }
+
+    public async Task<string> WaitForMasterClientPlayerPropertyAsync(string key, float timeoutSeconds = 8f, int pollMs = 200)
     {
         float waited = 0f;
         while (waited < timeoutSeconds)
         {
-            var v = GetRoomProperty(key);
+            var v = GetMasterClientPlayerProperty(key);
             if (!string.IsNullOrEmpty(v)) return v;
             await Task.Delay(pollMs);
             waited += pollMs / 1000f;

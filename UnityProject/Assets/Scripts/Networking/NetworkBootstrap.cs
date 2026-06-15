@@ -411,7 +411,7 @@ public class NetworkBootstrap : MonoBehaviour
         DebugLogger.Log("relay_alloc_succeeded");
 
         // Host advertises the current room letter (default 'A') as the
-        // human-facing alias. Voice room name and discovery property both
+        // human-facing alias. Voice room name and discovery key both
         // key off this single letter.
         _hostedAlias = CurrentRoom;
         _state = "Sharing room";
@@ -444,16 +444,23 @@ public class NetworkBootstrap : MonoBehaviour
         else
         {
             _state = "Host code didn't sync — long-press Y, try again";
-            DebugLogger.Log("relay_host_property_set_failed", null,
+            DebugLogger.Log("relay_host_player_property_set_failed", null,
                 ("room", CurrentLetter.ToString()));
         }
     }
 
-    // Set the Relay join code as a Photon room property, then verify it
-    // by reading our own local CurrentRoom view. Retries up to
-    // RelayPropertyMaxAttempts; each attempt is queue → wait
+    // Set the Relay join code as a custom property on our own LocalPlayer
+    // (the host's player object in the Photon voice room), then verify
+    // by reading it back from LocalPlayer.CustomProperties. Retries up
+    // to RelayPropertyMaxAttempts; each attempt is queue → wait
     // RelayPropertyVerifyDelayMs → read back. Emits one log event per
     // step so the JSONL trail makes it obvious which step failed.
+    //
+    // Player properties (rather than room properties) are the discovery
+    // channel because Photon Voice's LoadBalancingClient does not
+    // propagate room custom properties to new joiners (verified
+    // 2026-06-15). Player properties broadcast unconditionally to all
+    // room members on join and on every update.
     //
     // Returns true if a read-back saw the code we wrote; false if all
     // attempts failed (queue refused, or queued but never visible).
@@ -463,10 +470,10 @@ public class NetworkBootstrap : MonoBehaviour
 
         for (int attempt = 1; attempt <= RelayPropertyMaxAttempts; attempt++)
         {
-            DebugLogger.Log("relay_host_property_set_attempt", null,
+            DebugLogger.Log("relay_host_player_property_set_attempt", null,
                 ("attempt", attempt), ("key", RelayCodeProperty));
-            bool queued = _voiceBootstrap.SetRoomProperty(RelayCodeProperty, code);
-            DebugLogger.Log("relay_host_property_set_result", null,
+            bool queued = _voiceBootstrap.SetLocalPlayerProperty(RelayCodeProperty, code);
+            DebugLogger.Log("relay_host_player_property_set_result", null,
                 ("attempt", attempt), ("queued", queued));
 
             if (!queued)
@@ -475,19 +482,19 @@ public class NetworkBootstrap : MonoBehaviour
                 continue;
             }
 
-            DebugLogger.Log("relay_host_property_verify_attempt", null,
+            DebugLogger.Log("relay_host_player_property_verify_attempt", null,
                 ("attempt", attempt));
             await Task.Delay(RelayPropertyVerifyDelayMs);
 
-            string readBack = _voiceBootstrap.GetRoomProperty(RelayCodeProperty);
+            string readBack = _voiceBootstrap.GetLocalPlayerProperty(RelayCodeProperty);
             if (readBack == code)
             {
-                DebugLogger.Log("relay_host_property_verify_succeeded", null,
+                DebugLogger.Log("relay_host_player_property_verify_succeeded", null,
                     ("attempt", attempt));
                 return true;
             }
 
-            DebugLogger.Log("relay_host_property_verify_failed", null,
+            DebugLogger.Log("relay_host_player_property_verify_failed", null,
                 ("attempt", attempt),
                 ("read_back_was", string.IsNullOrEmpty(readBack) ? "null" : "different"));
             await Task.Delay(RelayPropertyRetryDelayMs);
@@ -535,16 +542,21 @@ public class NetworkBootstrap : MonoBehaviour
             return;
         }
 
-        var realCode = await _voiceBootstrap.WaitForRoomPropertyAsync(RelayCodeProperty, RelayJoinPropertyTimeoutSec);
+        DebugLogger.Log("relay_join_master_property_wait", null,
+            ("room", alias),
+            ("timeout_seconds", RelayJoinPropertyTimeoutSec));
+        var realCode = await _voiceBootstrap.WaitForMasterClientPlayerPropertyAsync(
+            RelayCodeProperty, RelayJoinPropertyTimeoutSec);
         if (string.IsNullOrEmpty(realCode))
         {
             _busy = false;
             _state = "Host's code missing";
-            DebugLogger.Log("relay_join_property_missing", null,
+            DebugLogger.Log("relay_join_master_property_missing", null,
                 ("room", alias),
                 ("waited_seconds", RelayJoinPropertyTimeoutSec));
             return;
         }
+        DebugLogger.Log("relay_join_master_property_found", null, ("room", alias));
 
         _state = "Joining fire";
         DebugLogger.Log("relay_join_calling");
