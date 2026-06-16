@@ -679,9 +679,51 @@ public class NetworkBootstrap : MonoBehaviour
         }
 
         var nm = NetworkManager.Singleton;
-        if (nm != null && (nm.IsHost || nm.IsClient))
+        if (nm != null)
         {
-            try { nm.Shutdown(); }
+            try
+            {
+                // Axis A follow-up: NGO `Shutdown()` is non-blocking — it
+                // enqueues the teardown which completes over multiple frames.
+                // Without waiting, the next `StartHost` / `StartClient` (or
+                // Unity Multiplayer SDK's `JoinSessionByCodeAsync`) can race
+                // a partially-shut-down NetworkManager / UnityTransport and
+                // throw `SessionException [Error: NetworkSetupFailed]`.
+                // Verified 2026-06-15 22:36 session: A2 without force-stop
+                // failed with that exact exception.
+                //
+                // Important: Unity Multiplayer Sessions SDK's
+                // `_session.LeaveAsync()` (called in `LeaveRelayAsync` above)
+                // *internally* triggers NGO Shutdown — by the time we get
+                // here, `IsHost` / `IsClient` are often already false but
+                // `ShutdownInProgress` is still true. So always poll
+                // regardless of host/client flags. We only call `Shutdown()`
+                // ourselves if Sessions SDK hasn't already started it.
+                if (nm.IsHost || nm.IsClient) nm.Shutdown();
+                DebugLogger.Log("ngo_shutdown_wait_started", null,
+                    ("was_host", nm.IsHost),
+                    ("was_client", nm.IsClient),
+                    ("in_progress_at_check", nm.ShutdownInProgress));
+                const float maxWaitSeconds = 2f;
+                const int pollMs = 50;
+                float waited = 0f;
+                while (nm.ShutdownInProgress && waited < maxWaitSeconds)
+                {
+                    await Task.Delay(pollMs);
+                    waited += pollMs / 1000f;
+                }
+                if (nm.ShutdownInProgress)
+                {
+                    clean = false;
+                    DebugLogger.Log("ngo_shutdown_wait_timeout", null,
+                        ("waited_seconds", waited));
+                }
+                else
+                {
+                    DebugLogger.Log("ngo_shutdown_wait_completed", null,
+                        ("waited_seconds", waited));
+                }
+            }
             catch (System.Exception e) { clean = false; DebugLogger.Log("stop_step_failed", "ngo_shutdown", ("error", e.Message)); }
         }
 
