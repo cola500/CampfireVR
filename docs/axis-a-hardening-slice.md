@@ -134,17 +134,52 @@ No new world-space text. No new icons. No new buttons. Just the existing 1-line 
 
 ## What we measured
 
-**Pending L2 re-run on hotspot to fill in.** Acceptance criteria from the request:
+Three test runs after landing this slice (2026-06-16):
 
-| Criterion | Verification approach | Status |
-|---|---|---|
-| Existing C1 logs fire unchanged | Re-run L2 hotspot, expect identical G1–G7 events | TBD post-build |
-| L0 audit still passes | Walk audit checklist against new HEAD; line numbers will shift but PASS verdicts hold | TBD post-build |
-| L2 hotspot G1–G9 still pass | Re-run L2 on hotspot, compare against previous green run | TBD post-build |
-| G10 explicitly testable or logged | Click-out-of-Editor procedure above produces full event chain | Documented; awaiting first observation |
-| Compiles without warnings | Batchmode build via `./scripts/build-quest.sh` | TBD post-implementation |
+### Run 1 — Force-stop hypothesis test (commit `e57986c`, hotspot)
 
-Will be filled in after the post-implementation build + re-test cycle.
+A1+A2+A3 with `adb shell am force-stop` between each attempt to fully restart the Quest process. A1+A2 PASSED both G1–G9 cleanly (~5 s join times). A3 FAILED with a **different** symptom — Quest landed in a separate Photon Voice "room A" instance from Editor (`relay_code_request_received from_actor=1` = self), strongly suggesting Photon region mismatch. Out of scope for this slice; tracked separately.
+
+### Run 2 — No-wait first attempt (commit `e57986c` + dirty NetworkBootstrap, hotspot)
+
+A1 PASS. A2 **FAIL** with `unity_error: "[ServicesBootstrap] JoinRelay: SessionException: [Error: NetworkSetupFailed] [Message: Unexpected exception processing network metadata]"` at +1.6 s after `relay_join_calling`. Same exact failure pattern as the pre-slice 2026-06-15 22:36 session.
+
+Diagnostic finding: the first version of the wait guard was gated on `if (nm.IsHost || nm.IsClient)` — but **Unity Multiplayer Sessions SDK's `_session.LeaveAsync()` internally calls NGO Shutdown before returning**, so by the time `StopAsync` reaches the NGO block, both flags are false and the wait was skipped entirely. Zero `ngo_shutdown_wait_*` events fired despite multiple Stop cycles. The wait code was dead.
+
+### Run 3 — Loose-guard wait (commit `8401efc`, hotspot)
+
+Loose guard (`if (nm != null)`) added so the wait runs regardless of host/client state. A1+A2 both PASSED G1–G9 without force-stop between them. The wait code now wires correctly: `ngo_shutdown_wait_started` and `_completed` fire on every Stop.
+
+But — and this matters — the new diagnostic fields show:
+```json
+{"event":"ngo_shutdown_wait_started","was_host":false,"was_client":false,"in_progress_at_check":false}
+{"event":"ngo_shutdown_wait_completed","waited_seconds":0.000}
+```
+
+NGO was **already fully shut down** at the moment of the check on both sides. `ShutdownInProgress` was already false. The poll loop exits immediately. **The wait was a no-op in this run.**
+
+### Interpretation — positive evidence, NOT proof
+
+What we know:
+- A1+A2 passed cleanly without force-stop on this run (Run 3).
+- The wait code is correctly wired (no dead branch) and emits diagnostics.
+- The wait did not actually wait for anything — NGO was already done.
+
+What we don't know:
+- Whether the session-cleanup bug is permanently fixed. The wait being a no-op in Run 3 means **we cannot claim causality** — Sessions SDK happened to finish NGO shutdown synchronously this time. It may not next time.
+- Whether the original failure was actually a NGO shutdown race or something else entirely (Multiplayer SDK's own internal state, Photon region affinity, timing-dependent service behaviour).
+
+This is **positive evidence, not proof of permanent fix**. If the failure reappears, the new `was_host` / `was_client` / `in_progress_at_check` / `waited_seconds` diagnostics will tell us whether NGO is racing or if the bug lives somewhere else.
+
+### Verifying the other acceptance criteria
+
+| Criterion | Status |
+|---|---|
+| Existing C1 logs fire unchanged | ✓ G4–G7 identical event names/fields across all runs |
+| L0 audit still passes | ✓ 24/24 after each rebuild (line numbers shifted, content unchanged) |
+| L2 hotspot G1–G9 still pass | ✓ multiple times (Run 1 A1, Run 1 A2, Run 3 A1, Run 3 A2) |
+| G10 explicitly testable or logged | Documented; not exercised on real Quest yet |
+| Compiles without warnings | ✓ batchmode build green each iteration |
 
 ## What we deliberately did not do
 
