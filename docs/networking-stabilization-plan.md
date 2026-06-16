@@ -445,7 +445,7 @@ This plan deliberately does **not** touch:
 - Dog companion, hands, controllers, forest, grass, environment
 - Visual polish, avatar rendering, materials
 - Store assets, App Lab compliance settings, build artifact naming
-- LAN mode beyond default-mode flip (we're not investing in LAN — it's a developer convenience)
+- LAN mode in any form (removed as user-facing path 2026-06-16, see `docs/lan-mode-removal-slice.md` — CampfireVR is now Internet/Relay-only)
 - Voice quality, audio routing, spatial audio placement
 - Photon Voice 2 NRE on scene-dirty (pre-existing Editor-only bug)
 

@@ -7,14 +7,11 @@ CampfireVR writes timestamped, structured events to a local file on every Quest 
 | Event | When | Useful for |
 |---|---|---|
 | `app_started` | First frame after launch | Per-session header — product name, version, platform, device model, install mode, plus build identity (build version, build time, git commit + branch, dirty flag, APK filename) |
-| `network_bootstrap_ready` | NetworkBootstrap.Start() | Initial mode, room letter, active scene |
-| `editor_key` | Editor key press (H/C/X/M/L) | Repro paths when iterating in flat-screen Editor |
-| `mode_changed` | Y press / M key | LAN ↔ Relay toggle |
+| `network_bootstrap_ready` | NetworkBootstrap.Start() | Initial room letter, active scene |
+| `editor_key` | Editor key press (H/C/X/L) | Repro paths when iterating in flat-screen Editor |
 | `room_changed` | Right thumbstick cycles letter | Off-default room selection |
 | `recenter` | A press | View recenter request |
 | `host_pressed` / `join_pressed` | X / B press | User intent capture |
-| `lan_host_attempt` / `lan_host_ready` / `lan_host_failed` | LAN host flow | Same-Wi-Fi diagnostics |
-| `lan_join_attempt` / `lan_join_started` / `lan_join_failed` | LAN client flow | Same-Wi-Fi diagnostics |
 | `relay_host_attempt` / `relay_alloc_succeeded` / `relay_alloc_failed` | Unity Relay allocation | Internet-mode allocation failures |
 | `relay_host_player_property_set_attempt` / `relay_host_player_property_set_result` | Per-attempt host write of `rc` to its own LocalPlayer custom properties | Captures `queued` boolean from `Player.SetCustomProperties`; up to 3 attempts per host call. Replaced the previous room-property path after the 2026-06-15 two-headset tests proved Photon Voice does not propagate room properties to new joiners. |
 | `relay_host_player_property_verify_attempt` / `relay_host_player_property_verify_succeeded` / `relay_host_player_property_verify_failed` | Host reads `rc` back from its own LocalPlayer view after the write | Detects fire-and-forget silent failures by confirming the write reached our local cache before declaring host ready |
@@ -36,7 +33,6 @@ CampfireVR writes timestamped, structured events to a local file on every Quest 
 | `relay_join_cleanup_after_fail` | Lighter teardown after a failed Relay join — leaves the Photon voice room so a retry doesn't race a half-joined state | Does not shutdown NGO (joiner never entered NGO). Preserves the "Couldn't reach fire" state text. |
 | `ngo_shutdown_wait_started` / `ngo_shutdown_wait_completed` / `ngo_shutdown_wait_timeout` | `StopAsync` awaits `NetworkManager.ShutdownInProgress = false` after calling `Shutdown()` with a 2 s bounded timeout. Fixes Unity Multiplayer SDK `SessionException [Error: NetworkSetupFailed]` race on subsequent re-join without force-stopping the process | `_started` includes `was_host`, `was_client`, `in_progress_at_check`. `_completed` and `_timeout` include `waited_seconds`. Timeout sets `stop_completed_with_errors`. Diagnostic value: when Sessions SDK already finished NGO shutdown before our wait reaches it, fields show `was_*=false` + `in_progress_at_check=false` + `waited_seconds=0` (no-op exit). |
 | `voice_region_selected` | Fires once per process the first time Photon Voice reaches `ConnectedToMasterServer` | Includes `region` (Photon `CloudRegion` string, e.g. `"eu"` / `"us"` / `"sa"`), `app_version`, `platform`. Diagnostic for A3-style failures where Quest and Editor land in separate "room A" instances due to different Photon regions. Compare the two peers' logs — if `region` differs, that's the cause. |
-| `mode_toggle_stop_first` | `ToggleMode` detected a live NGO/Relay session and tore it down before flipping the enum (backlog row 4.102 fix) | Includes `mode`, `in_ngo_session`, `in_relay_session`. |
 | `voice_connect_attempt` | VoiceBootstrap.Start() | Photon Voice cloud connection start |
 | `voice_state` | Photon `ClientState` transitions | Connection state debugging |
 | `voice_joined` / `voice_left_room` / `voice_disconnected_while_in_room` / `voice_room_join_attempt` / `voice_room_leave_requested` | Voice room lifecycle | Voice room name + timing |

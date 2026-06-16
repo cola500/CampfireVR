@@ -1,24 +1,15 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 using UnityEngine.XR;
 
 public class NetworkBootstrap : MonoBehaviour
 {
-    public enum Mode { Lan, Relay }
     public enum Phase { Idle, Hosting, Connecting, Connected }
 
-    [SerializeField] private string serverAddress = "127.0.0.1";
-    [SerializeField] private ushort port = 7777;
-    [SerializeField] private Mode mode = Mode.Lan;
-
-    public Mode CurrentMode => mode;
-    public string CurrentModeLabel => mode == Mode.Relay ? "Internet" : "Same Wi-Fi";
     public string CurrentState => _state;
     public string LastButton => _lastButton;
     public string LastAction => _lastAction;
@@ -39,7 +30,7 @@ public class NetworkBootstrap : MonoBehaviour
                 return nm.IsConnectedClient ? Phase.Connected : Phase.Connecting;
             if (nm.IsHost)
                 return nm.ConnectedClientsIds.Count >= 2 ? Phase.Connected : Phase.Hosting;
-            if (_busy && mode == Mode.Relay)
+            if (_busy)
             {
                 if (string.IsNullOrEmpty(_joinCodeInput)) return Phase.Hosting;
                 return Phase.Connecting;
@@ -48,7 +39,6 @@ public class NetworkBootstrap : MonoBehaviour
         }
     }
 
-    private const string LanRoomName = "lan-campfire";
     private const string CodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private const int CodeLength = 1;
     private const string RelayCodeProperty = "rc";
@@ -56,8 +46,8 @@ public class NetworkBootstrap : MonoBehaviour
     private const float StickRepeatDelay = 0.35f;
     private const float StickRepeatInterval = 0.12f;
     // Long-press Y for this duration triggers an in-VR Stop. Short tap
-    // still toggles mode — we delay the ToggleMode to release-edge so we
-    // can suppress it if the press grew into a long-press.
+    // has no binding (LAN/Relay mode toggle was removed in the LAN-mode
+    // removal slice — CampfireVR is now Internet/Relay-only).
     private const float StopLongPressDuration = 1.5f;
 
     // Host-side property write + verify constants. Photon's
@@ -96,9 +86,8 @@ public class NetworkBootstrap : MonoBehaviour
     private float _stickPosNextRepeat, _stickNegNextRepeat;
 
     // Y-button hold state for long-press Stop. _yHeldTime accumulates while
-    // Y is down; once it crosses StopLongPressDuration, we fire Stop() and
-    // mark _yConsumedByLongPress so the upcoming release-edge skips the
-    // normal ToggleMode action.
+    // Y is down; once it crosses StopLongPressDuration, we fire Stop().
+    // Short tap is unbound — see PollYLongPress for the release path.
     private bool _yHeld;
     private float _yHeldTime;
     private bool _yConsumedByLongPress;
@@ -107,7 +96,6 @@ public class NetworkBootstrap : MonoBehaviour
     private GUIStyle _labelStyle;
     private GUIStyle _stateStyle;
     private GUIStyle _promptStyle;
-    private GUIStyle _modeStyle;
 
     void Awake()
     {
@@ -129,7 +117,6 @@ public class NetworkBootstrap : MonoBehaviour
             nm.OnTransportFailure += OnTransportFailure;
         }
         DebugLogger.Log("network_bootstrap_ready", null,
-            ("mode", mode.ToString()),
             ("room", CurrentLetter.ToString()),
             ("scene", UnityEngine.SceneManagement.SceneManager.GetActiveScene().name));
     }
@@ -155,7 +142,6 @@ public class NetworkBootstrap : MonoBehaviour
         var nm = NetworkManager.Singleton;
         bool wasHost = nm != null && nm.IsHost;
         DebugLogger.Log("ngo_transport_failure_detected", null,
-            ("mode", mode.ToString()),
             ("was_host", wasHost));
         _state = "Connection dropped — press X then try again";
         _busy = false;
@@ -185,13 +171,12 @@ public class NetworkBootstrap : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.H)) { DebugLogger.Log("editor_key", "H"); StartHost(); }
             if (Input.GetKeyDown(KeyCode.C)) { DebugLogger.Log("editor_key", "C"); StartClient(); }
             if (Input.GetKeyDown(KeyCode.X)) { DebugLogger.Log("editor_key", "X"); Stop(); }
-            if (Input.GetKeyDown(KeyCode.M)) { DebugLogger.Log("editor_key", "M"); ToggleMode(); }
             if (Input.GetKeyDown(KeyCode.L)) DebugLogger.Marker("editor_L");
         }
 
-        // LeftHand secondary (Y) is handled by PollYLongPress below — we
-        // need release-edge for the normal ToggleMode action so a long-press
-        // can claim the press without also firing the mode toggle.
+        // LeftHand secondary (Y) is handled by PollYLongPress below —
+        // long-press triggers Stop. Short tap is unbound (mode toggle
+        // was removed when LAN mode was removed).
         PollController(XRNode.LeftHand,  ref _prevLPrimary, ref _prevLSecondary, OnLeftPrimary,  null);
         PollController(XRNode.RightHand, ref _prevRPrimary, ref _prevRSecondary, OnRightPrimary, OnRightSecondary);
 
@@ -202,9 +187,9 @@ public class NetworkBootstrap : MonoBehaviour
         UpdateStickCycle();
     }
 
-    // Y on the left controller: short tap = ToggleMode (as before); hold
-    // for >= StopLongPressDuration = Stop. Suppresses ToggleMode on release
-    // if Stop already fired during the hold.
+    // Y on the left controller: hold for >= StopLongPressDuration to Stop.
+    // Short tap is unbound — the LAN/Relay mode toggle that used to live
+    // on the release-edge was removed with LAN mode.
     void PollYLongPress()
     {
         var dev = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
@@ -217,7 +202,6 @@ public class NetworkBootstrap : MonoBehaviour
 
         if (yNow && !_yHeld)
         {
-            // Press edge — start tracking; do not invoke ToggleMode yet.
             _yHeld = true;
             _yHeldTime = 0f;
             _yConsumedByLongPress = false;
@@ -236,13 +220,7 @@ public class NetworkBootstrap : MonoBehaviour
         }
         else if (_yHeld)
         {
-            // Release edge — only fire ToggleMode if it wasn't a long-press.
             _yHeld = false;
-            if (!_yConsumedByLongPress)
-            {
-                _lastButton = "LeftHand secondary";
-                OnLeftSecondary();
-            }
             _yHeldTime = 0f;
             _yConsumedByLongPress = false;
         }
@@ -299,12 +277,6 @@ public class NetworkBootstrap : MonoBehaviour
         StartHost();
     }
 
-    void OnLeftSecondary()
-    {
-        _lastAction = "Y: toggle mode";
-        ToggleMode();
-    }
-
     void OnRightPrimary()
     {
         _lastAction = "A: recenter";
@@ -325,7 +297,7 @@ public class NetworkBootstrap : MonoBehaviour
             DebugLogger.Log("join_ignored_already_hosting", null, ("room", CurrentLetter.ToString()));
             return;
         }
-        if (mode == Mode.Relay && _services != null && _services.InRelaySession)
+        if (_services != null && _services.InRelaySession)
         {
             _lastAction = "B: ignored (already in session)";
             _state = $"Already in Room {CurrentLetter}";
@@ -333,8 +305,7 @@ public class NetworkBootstrap : MonoBehaviour
             return;
         }
 
-        if (mode == Mode.Lan) _lastAction = "B: join LAN";
-        else _lastAction = $"B: join room {CurrentLetter}";
+        _lastAction = $"B: join room {CurrentLetter}";
         StartClient();
     }
 
@@ -373,29 +344,6 @@ public class NetworkBootstrap : MonoBehaviour
         prevP = p; prevS = s;
     }
 
-    // Axis A: if a session is live when the user toggles mode, tear it
-    // down first. Verified 2026-06-15 (backlog row 4.102): without this
-    // guard, ToggleMode flips the enum but leaves the active NGO/Relay/
-    // Photon Voice session running, causing the next host/join press to
-    // race a half-up old session.
-    async void ToggleMode()
-    {
-        var nm = NetworkManager.Singleton;
-        bool inNgoSession = nm != null && (nm.IsHost || nm.IsClient);
-        bool inRelaySession = _services != null && _services.InRelaySession;
-        if (inNgoSession || inRelaySession)
-        {
-            DebugLogger.Log("mode_toggle_stop_first", null,
-                ("mode", mode.ToString()),
-                ("in_ngo_session", inNgoSession),
-                ("in_relay_session", inRelaySession));
-            await StopAsync();
-        }
-        mode = (mode == Mode.Lan) ? Mode.Relay : Mode.Lan;
-        _state = $"Mode · {CurrentModeLabel}";
-        DebugLogger.Log("mode_changed", null, ("mode", mode.ToString()));
-    }
-
     void Recenter()
     {
         var subs = new List<XRInputSubsystem>();
@@ -419,21 +367,7 @@ public class NetworkBootstrap : MonoBehaviour
     async void StartHost()
     {
         if (_busy) return;
-        DebugLogger.Log("host_pressed", null, ("mode", mode.ToString()), ("room", CurrentLetter.ToString()));
-        if (mode == Mode.Lan)
-        {
-            _state = "Lighting LAN fire";
-            DebugLogger.Log("lan_host_attempt", null, ("address", serverAddress), ("port", (int)port));
-            if (!ConfigureLanTransport()) { DebugLogger.Log("lan_host_failed", "transport-config"); return; }
-            if (NetworkManager.Singleton.StartHost())
-            {
-                _state = "Waiting for friend";
-                _voiceBootstrap?.JoinRoom(LanRoomName);
-                DebugLogger.Log("lan_host_ready");
-            }
-            else { _state = "Host failed"; DebugLogger.Log("lan_host_failed", "StartHost-returned-false"); }
-            return;
-        }
+        DebugLogger.Log("host_pressed", null, ("room", CurrentLetter.ToString()));
 
         if (_services == null || !_services.IsReady) { _state = "Signing in"; DebugLogger.Log("relay_host_blocked", "services-not-ready"); return; }
 
@@ -573,21 +507,7 @@ public class NetworkBootstrap : MonoBehaviour
     async void StartClient()
     {
         if (_busy) return;
-        DebugLogger.Log("join_pressed", null, ("mode", mode.ToString()), ("room", CurrentLetter.ToString()));
-        if (mode == Mode.Lan)
-        {
-            _state = "Joining fire";
-            DebugLogger.Log("lan_join_attempt", null, ("address", serverAddress), ("port", (int)port));
-            if (!ConfigureLanTransport()) { DebugLogger.Log("lan_join_failed", "transport-config"); return; }
-            if (NetworkManager.Singleton.StartClient())
-            {
-                _state = "Joining fire";
-                _voiceBootstrap?.JoinRoom(LanRoomName);
-                DebugLogger.Log("lan_join_started");
-            }
-            else { _state = "Join failed"; DebugLogger.Log("lan_join_failed", "StartClient-returned-false"); }
-            return;
-        }
+        DebugLogger.Log("join_pressed", null, ("room", CurrentLetter.ToString()));
 
         if (_services == null || !_services.IsReady) { _state = "Signing in"; DebugLogger.Log("relay_join_blocked", "services-not-ready"); return; }
 
@@ -659,8 +579,8 @@ public class NetworkBootstrap : MonoBehaviour
     // teardown (the Y long-press in-VR and the X key in Editor).
     void Stop() { _ = StopAsync(); }
 
-    // Awaitable version — used by ToggleMode and post-failed-join paths
-    // that need to wait for the teardown to finish before continuing.
+    // Awaitable version — used by post-failed-join paths that need to wait
+    // for the teardown to finish before continuing.
     async Task StopAsync()
     {
         // Caller (long-press Y in-VR, X-key in Editor) already logged
@@ -735,7 +655,7 @@ public class NetworkBootstrap : MonoBehaviour
 
         _state = "Stopped session";
         DebugLogger.Log(clean ? "stop_completed" : "stop_completed_with_errors", null,
-            ("mode", mode.ToString()), ("room", CurrentLetter.ToString()));
+            ("room", CurrentLetter.ToString()));
     }
 
     // Axis A: lighter teardown after a failed Relay join. The joiner never
@@ -755,16 +675,6 @@ public class NetworkBootstrap : MonoBehaviour
         await Task.Yield();
     }
 
-    bool ConfigureLanTransport()
-    {
-        var nm = NetworkManager.Singleton;
-        if (nm == null) { _state = "No NetworkManager"; return false; }
-        var t = nm.GetComponent<UnityTransport>();
-        if (t == null) { _state = "No UnityTransport"; return false; }
-        t.SetConnectionData(serverAddress, port, "0.0.0.0");
-        return true;
-    }
-
     void EnsureStyles()
     {
         if (_codeStyle != null) return;
@@ -773,8 +683,6 @@ public class NetworkBootstrap : MonoBehaviour
         _stateStyle = new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter };
         _promptStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         _promptStyle.normal.textColor = new Color(1f, 0.85f, 0.62f, 0.85f);
-        _modeStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-        _modeStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f, 0.6f);
     }
 
     void OnGUI()
@@ -787,13 +695,9 @@ public class NetworkBootstrap : MonoBehaviour
         bool connected = nm != null && (nm.IsHost || nm.IsClient);
 
         float w = Screen.width;
-        GUI.Label(new Rect(0, 20, w, 24), $"Mode: {mode}", _modeStyle);
 
-        if (Application.isEditor)
-        {
-            GUI.Label(new Rect(20, 50, 1100, 24),
-                $"Local IPs: {string.Join(", ", GetLocalIPv4())}    (editor keys: H host, C join, M mode, X stop)");
-        }
+        GUI.Label(new Rect(20, 50, 1100, 24),
+            $"Local IPs: {string.Join(", ", GetLocalIPv4())}    (editor keys: H host, C join, X stop)");
 
         float topY = Screen.height * 0.18f;
         if (!string.IsNullOrEmpty(_hostedAlias))
@@ -813,7 +717,7 @@ public class NetworkBootstrap : MonoBehaviour
 
         GUI.Label(new Rect(0, Screen.height * 0.70f, w, 40), _state, _stateStyle);
 
-        if (mode == Mode.Relay && Application.isEditor && !connected)
+        if (Application.isEditor && !connected)
         {
             GUI.Label(new Rect(20, 80, 220, 28), "Editor room override:");
             var typed = (GUI.TextField(new Rect(240, 80, 60, 28), CurrentRoom, CodeLength) ?? "").ToUpper();

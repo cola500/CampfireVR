@@ -94,15 +94,12 @@ public class TutorialOverlay : MonoBehaviour
             case NetworkBootstrap.Phase.Idle:
             default:
             {
-                string modeLine = $"mode · {_net.CurrentModeLabel}";
                 text.text =
                     "🔥  CAMPFIRE\n" +
                     $"Room: {letter}\n" +
                     "\n" +
-                    BuildLegend(letter) + "\n" +
-                    "\n" +
-                    modeLine +
-                    (string.IsNullOrEmpty(notification) ? "" : "\n" + notification);
+                    BuildLegend(letter) +
+                    (string.IsNullOrEmpty(notification) ? "" : "\n\n" + notification);
                 break;
             }
         }
@@ -111,7 +108,6 @@ public class TutorialOverlay : MonoBehaviour
     static string BuildLegend(char letter) =>
         $"X       host room {letter}\n" +
         $"B       join room {letter}\n" +
-        "Y       mode\n" +
         "A       recenter\n" +
         "stick   change room";
 
