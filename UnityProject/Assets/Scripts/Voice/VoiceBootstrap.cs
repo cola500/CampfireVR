@@ -26,6 +26,13 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
     private bool _reconnectInFlight;
     private const float IdleReconnectBackoffSeconds = 5f;
 
+    // One-shot flag for region logging — fires the first time we reach
+    // ConnectedToMasterServer per process. A3-style failures (Quest and
+    // Editor alone in their own "room A" instances) are most likely
+    // explained by them landing on different Photon regions. Logging the
+    // CloudRegion on both peers makes that observable in JSONL.
+    private bool _regionLogged;
+
     // Photon event codes for the Relay-code handshake. Valid app range
     // is 1-199 (200+ reserved by Photon internals).
     //
@@ -112,6 +119,18 @@ public class VoiceBootstrap : MonoBehaviour, IInRoomCallbacks, IOnEventCallback
         if (state != _lastLoggedState)
         {
             DebugLogger.Log("voice_state", null, ("state", state.ToString()));
+            // Axis A diagnostic: log the Photon Voice region we landed on
+            // once, when we first reach ConnectedToMasterServer per process.
+            // Compare Editor + Quest logs to see if A3-style failures
+            // (separate "room A" instances) line up with region mismatch.
+            if (!_regionLogged && state == ClientState.ConnectedToMasterServer)
+            {
+                _regionLogged = true;
+                DebugLogger.Log("voice_region_selected", null,
+                    ("region", _voice.Client.CloudRegion ?? ""),
+                    ("app_version", Application.version),
+                    ("platform", Application.platform.ToString()));
+            }
             if (_reconnectInFlight)
             {
                 if (state == ClientState.ConnectedToMasterServer || state == ClientState.Joined)
