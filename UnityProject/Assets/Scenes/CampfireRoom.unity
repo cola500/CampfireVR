@@ -11707,6 +11707,7 @@ GameObject:
   - component: {fileID: 1487002666}
   - component: {fileID: 1487002665}
   - component: {fileID: 1487002667}
+  - component: {fileID: 1487002668}
   m_Layer: 0
   m_Name: FireLight
   m_TagString: Untagged
@@ -11811,6 +11812,24 @@ MonoBehaviour:
   flickerSpeed: 4
   dimColor: {r: 1, g: 0.42, b: 0.14, a: 1}
   brightColor: {r: 1, g: 0.65, b: 0.28, a: 1}
+--- !u!114 &1487002668
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1487002664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0b654f4ba91947de8c78f86c82709b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireVoicePresence
+  talkingIntensityMultiplier: 1.08
+  talkingFlickerMultiplier: 1.08
+  rampSeconds: 1.5
+  logStateChanges: 1
+  fireLightFlicker: {fileID: 0}
+  voiceBootstrap: {fileID: 0}
 --- !u!4 &1498612282 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2186217001014013416, guid: 915ac35a5aca31d4c9575633be0f6b82, type: 3}
@@ -13951,7 +13970,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.339
+      value: 0.429
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalPosition.y
@@ -13959,11 +13978,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 1.906
+      value: 1.283
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.030358654
+      value: 0.10602627
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalRotation.x
@@ -13971,7 +13990,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.9995391
+      value: -0.99436337
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalRotation.z
@@ -13983,7 +14002,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -183.479
+      value: -167.827
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 795028fde60fa4ca588ba7ce7327f246, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
