@@ -13,12 +13,11 @@ related: [install-on-quest.md, release-process.md, blender-asset-pipeline.md, ci
 
 ## Why this exists
 
-A fresh clone of CampfireVR does **not** open into a working scene on its own. Asset Store packs are gitignored per EULA, `CLAUDE.md` and `.mcp.json` are local-only, and the scene references a `.blend` file directly. This checklist was written during the 2026-10 migration audit; it lists every manual step found by static analysis of the repo. Nothing here has been verified on the new machine yet — tick items off and annotate surprises.
+A fresh clone of CampfireVR does **not** open into a working scene on its own. Asset Store packs are gitignored per EULA, `.mcp.json` is local-only, and the scene references a `.blend` file directly. This checklist was written during the 2026-10 migration audit; it lists every manual step found by static analysis of the repo. Nothing here has been verified on the new machine yet — tick items off and annotate surprises.
 
 ## 1. Before leaving the old machine
 
 - [ ] `git status` is clean (or remaining changes are intentionally local), and `git log @{upstream}..` is empty on every branch you care about.
-- [ ] Copy `CLAUDE.md` (repo root — untracked on purpose since `81bc304`).
 - [ ] Copy `~/Development/CLAUDE.md` (the shared collaboration guide) if you want it on the new machine.
 - [ ] Copy the release keystore if one exists (suggested location `~/.keystores/CampfireVR-release.keystore`, see `docs/release-keystore.md`). Never via git.
 - [ ] Optional: copy Claude Code memory from `~/.claude/projects/-Users-<user>-Development-CampfireVR/memory/`. The folder name encodes the absolute repo path — rename it if the path differs on the new machine.
@@ -77,7 +76,6 @@ After importing:
 
 ## 6. Local-only config
 
-- [ ] Put `CLAUDE.md` back in the repo root.
 - [ ] Create `.mcp.json` from `.mcp.example.json`: replace `ABSOLUTE_PATH_TO_REPO` and `PACKAGE_HASH` (look under `UnityProject/Library/PackageCache/com.gamelovers.mcp-unity@<HASH>/`). Restart Claude Code.
 - [ ] Start the MCP server from Unity (mcp-unity's server window under the `Tools` menu — exact path unverified) and confirm Claude Code connects.
 - [ ] Quest: enable Developer Mode in the Meta Horizon app, connect over USB-C, accept "Allow USB debugging" in the headset.
